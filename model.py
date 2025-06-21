@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from dataclasses import dataclass
+from typing import Optional, Tuple
 
 """ core logic / classes to setup transformer nn"""
 
@@ -23,7 +24,6 @@ class GPTconfig:
     a_bias: bool = True  # bias true for q, k, v, proj in attention layers
     ffw_bias: bool = True  # bias true for lin layers in ffw modules; they follow layernorm layers
     lm_head_bias: bool = False
-
 
 
 class Head(nn.Module):
@@ -86,7 +86,7 @@ class Ffw(nn.Module):
     - dropout before returning output
     """
     
-    def __init__(self, config:GPTconfig):
+    def __init__(self, config: GPTconfig):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Linear(config.n_embd, config.n_embd * config.ffw_widen, bias=config.ffw_bias),
@@ -97,7 +97,7 @@ class Ffw(nn.Module):
 
     def forward(self, x) -> torch.Tensor:
         return self.layers(x)
-    
+
 
 class TransformerBlock(nn.Module):
     """
@@ -120,31 +120,45 @@ class TransformerBlock(nn.Module):
 
 # Core GPT logic setting up NN
 class GPT(nn.Module):
+    """ central class setting up the NN"""
     
-    def __init__(self, config:GPTconfig):
+    def __init__(self, config: GPTconfig):
         super().__init__()
-        # embeddings
-        self.tok_embeddings = nn.Embedding(vocab_size, n_embd)
-        self.pos_embeddings = nn.Embedding(context_len, n_embd)
-        # transformer blocks of amount n_layer
-        self.t_blocks = nn.Sequential(*[TransformerBlock(config) for _ in range(n_layer)])
+        self.config = config
+        # embeddings & transformer blocks
+        self.transformer = nn.ModuleDict(dict(
+            wte=nn.Embedding(config.vocab_size, config.n_embd),
+            wpe=nn.Embedding(config.context_len, config.n_embd),
+            drop=nn.Dropout(config.dropout),
+            h=nn.ModuleList([TransformerBlock(config) for _ in range(config.n_layer)]),
+            ln_f=nn.LayerNorm(config.n_embd),
+        ))
         # output layer
-        self.lm_head = nn.Linear(n_embd, vocab_size, bias=config.lm_head_bias)
+        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=config.lm_head_bias)
  
-    def forward(self, idx, targets=None):
+    def forward(
+        self, 
+        idx: torch.Tensor,
+        targets: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, Optional[torch.tensor]]:
+        
+        device = idx.device
         B, T = idx.shape
-        # x comes as B, T; token embeddings; B,T,C
-        tok_emb = self.tok_embeddings(idx)
+        assert T <= self.config.context_len
         # creates 1D-tensor with values from 0 - context_len; T
-        pos_idx = torch.arange(0, T, device=device)
-        # position embeddings; T, C
-        pos_emb = self.pos_embeddings(pos_idx)
-        # combined emds for token + pos; B, T, C
-        emb = tok_emb + pos_emb
-        # hidden layers & logits
-        h = self.t_blocks(emb)
-        logits = self.lm_head(h)
-        # calc loss if targets are available; otherwise set loss to None for sampling
+        pos_idx = torch.arange(0, T, dtype=torch.long, device=device)
+        
+        # setup embeddings
+        tok_emb = self.transformer.wte(idx)  # B,T,C
+        pos_emb = self.transformer.wpe(pos_idx)  # position embeddings; T,C
+        # dropout on combined embeddings
+        x = self.transformer.drop(tok_emb + pos_emb)
+        # forward through hidden layers & layernorm
+        for block in self.transformer.h:
+            x = block(x)
+        x = self.transformer.ln_f(x)
+        logits = self.lm_head(x)
+        # calc loss if targets are available; otherwise loss is None
         if targets is None:
             loss = None
         else:
@@ -156,28 +170,3 @@ class GPT(nn.Module):
             loss = F.cross_entropy(logits, targets)
         return logits, loss
     
-    # generate names of tbd amount; name ends at first line break char
-    def generate(self, amount_names):
-        out = []
-        for _ in range(amount_names):
-            name = []
-            # start always with 0 context for linebreak as first char; forward pass expects shape of (1, 1) to work
-            context = torch.zeros((1, 1), dtype=torch.long)
-            context = context.to(device)
-            while True:
-                # context must not be greater than context_len, otherwise mat mul in forward pass does not work; cut max latest context
-                context_cut = context[:, -context_len:]
-                logits, _ = self(context_cut)
-                # grab logits at last timestep
-                logits = logits[:, -1, :]
-                logits = F.softmax(logits, dim=-1)
-                idx = torch.multinomial(logits, num_samples=1, replacement=True).item()
-                name.append(itos[idx])
-                # end name gen when first linebreak is sampled
-                if idx == 0:
-                    break
-                else:
-                    # as long as no linebreak is hit, add last idx to context and sample next char for name
-                    context = torch.cat((context, torch.tensor([[idx]], dtype=torch.long, device=device)), dim=1)
-            out.append("".join(name))
-        return out

@@ -19,9 +19,11 @@ class GPTconfig:
     n_head: int = 8
     n_layer: int = 8
     dropout: float = 0.2
+    ffw_widen: int = 4  # factor to widen linear layer in ffw module
     a_bias: bool = True  # bias true for q, k, v, proj in attention layers
-    ffw_bias: bool = True  # bias true for lin layers in ffw modules, since they follow layernorm layers
+    ffw_bias: bool = True  # bias true for lin layers in ffw modules; they follow layernorm layers
     lm_head_bias: bool = False
+
 
 
 class Head(nn.Module):
@@ -70,40 +72,47 @@ class MultiHeadAttention(nn.Module):
         self.proj = nn.Linear(config.n_embd, config.n_embd, bias=config.a_bias)
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         # cat each head out along last dim
         out = torch.cat([head(x) for head in self.heads], dim=-1)
         out = self.dropout(self.proj(out))
         return out
     
 
-# mlp layer with relu; widened first linear layer
 class Ffw(nn.Module):
+    """
+    - mlp layer with relu non-linearity
+    - widened by tbd factor
+    - dropout before returning output
+    """
     
     def __init__(self, config:GPTconfig):
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Linear(n_embd, n_embd * 4, bias=config.ffw_bias),
+            nn.Linear(config.n_embd, config.n_embd * config.ffw_widen, bias=config.ffw_bias),
             nn.ReLU(),
-            nn.Linear(n_embd * 4, n_embd, bias=config.ffw_bias),
-            nn.Dropout(dropout),
+            nn.Linear(config.n_embd * config.ffw_widen, config.n_embd, bias=config.ffw_bias),
+            nn.Dropout(config.dropout),
         )
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         return self.layers(x)
     
 
-# transformer block: communication in multi-head-attention, then computation in ffw layers
 class TransformerBlock(nn.Module):
+    """
+    - transformer block: communication in multi-head-attention, computation in ffw layers
+    - layernorm -> attention -> skip -> layernorm -> ffw -> skip
+    """
     
     def __init__(self, config: GPTconfig):
         super().__init__()
         self.multi_head_sa = MultiHeadAttention(config)
         self.ffw = Ffw(config)
-        self.ln1 = nn.LayerNorm(n_embd)
-        self.ln2 = nn.LayerNorm(n_embd)
+        self.ln1 = nn.LayerNorm(config.n_embd)
+        self.ln2 = nn.LayerNorm(config.n_embd)
     
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         x = x + self.multi_head_sa((self.ln1(x)))
         x = x + self.ffw(self.ln2(x))
         return x
@@ -118,7 +127,7 @@ class GPT(nn.Module):
         self.tok_embeddings = nn.Embedding(vocab_size, n_embd)
         self.pos_embeddings = nn.Embedding(context_len, n_embd)
         # transformer blocks of amount n_layer
-        self.t_blocks = nn.Sequential(*[TransformerBlock() for _ in range(n_layer)])
+        self.t_blocks = nn.Sequential(*[TransformerBlock(config) for _ in range(n_layer)])
         # output layer
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=config.lm_head_bias)
  

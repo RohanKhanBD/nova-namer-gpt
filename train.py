@@ -1,9 +1,12 @@
 
 import os
+from datetime import datetime
 import torch
 import torch.optim as Optim
 import numpy as np
 import pickle
+import json
+from dataclasses import asdict
 from config import TrainConfig
 from model import GPTconfig, GPT
 from typing import Tuple, Dict
@@ -89,8 +92,52 @@ class NameGPTTrainer:
         self.model.train()
         return out
     
+    def _save_model(self, final_train_loss: float, final_dev_loss: float, training_time: float) -> None:
+        """
+        save trained model with configuration metadata
+        """
+        # Create timestamp for unique model naming
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_dir = os.path.join(
+            self.train_config.model_save_dir, 
+            f"{self.train_config.model_name}_{timestamp}"
+        )
+        # Create model directory
+        os.makedirs(model_dir, exist_ok=True)
+        # Save model checkpoint
+        model_path = os.path.join(model_dir, "model.pt")
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optim.state_dict(),
+        }, model_path)
+        
+        # Save configuration and metadata as JSON
+        config_data = {
+            "train_config": asdict(self.train_config),
+            "model_config": asdict(self.model_config),
+            "training_metadata": {
+                "final_train_loss": float(final_train_loss),
+                "final_dev_loss": float(final_dev_loss),
+                "training_time": round(training_time / 60, 2),
+                "total_parameters": sum(p.nelement() for p in self.model.parameters()),
+                "device_used": str(self.device),
+                "timestamp": datetime.now().isoformat(),
+                "pytorch_version": torch.__version__
+            }
+        }
+        
+        config_path = os.path.join(model_dir, "config.json")
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, indent=2, ensure_ascii=False)
+        
+        print(f"Model saved to: {model_dir}")
+        print(f"  - Model checkpoint: {model_path}")
+        print(f"  - Configuration: {config_path}")
+    
     def train_model(self):
         """ train model over defined train steps """
+        # Record training start time
+        start_time = datetime.now()
         # seed for torch from train_config
         torch.manual_seed(self.train_config.seed)
         # training loop
@@ -99,7 +146,7 @@ class NameGPTTrainer:
             # eval loss & print after certain amount of train steps
             if i % self.train_config.eval_interval == 0:
                 losses = self.check_loss()
-                print(f"loss after {i} iterations: train_loss {losses[self.train_split]}; eval_loss {losses[self.dev_split]}")
+                print(f"loss after {i} iterations: train_loss {losses[self.train_split]:.4f}; eval_loss {losses[self.dev_split]:.4f}")
             
             # forward pass
             Xtr, Ytr = self._get_batch(self.train_split)
@@ -114,6 +161,23 @@ class NameGPTTrainer:
             self.optim.step()
 
             #break
+
+        # Final evaluation after training
+        final_losses = self.check_loss()
+        print(f"Final losses: train_loss {final_losses[self.train_split]:.4f}; eval_loss {final_losses[self.dev_split]:.4f}")
+
+        # Calculate training time
+        end_time = datetime.now()
+        training_time = (end_time - start_time).total_seconds()
+        print(f"Training completed in {training_time:.2f} seconds")
+
+        # Save model if enabled with config flag
+        if self.train_config.save_model:
+            self._save_model(
+                final_train_loss=final_losses[self.train_split],
+                final_dev_loss=final_losses[self.dev_split],
+                training_time=training_time
+            )
 
 
 def main():

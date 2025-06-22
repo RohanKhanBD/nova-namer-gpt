@@ -1,3 +1,17 @@
+
+# data loading: deliver batches of X, Y tensors for chosen split
+torch.manual_seed(42)
+def get_batch(split):
+    """ delivers a batch of X, Y tensors for specified split"""
+    # get random numbers (in amount of "batch_size") within split boundaries to grab data for the batch samples
+    batch_borders = torch.randint(0, len(split)-context_len, (batch_size,))
+    x = torch.stack([split[t : t+context_len] for t in batch_borders])
+    y = torch.stack([split[t+1 : t+context_len+1] for t in batch_borders])
+    return x, y
+x, y = get_batch(train_split)
+print(x.shape, y.shape)
+
+
 # validate loss function outsite backprop; called from training function after defined training steps
 @torch.no_grad()
 def check_loss():

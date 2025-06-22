@@ -3,8 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from dataclasses import dataclass
 from typing import Optional, Tuple
+from config import GPTconfig
 
-""" core logic / classes to setup transformer nn"""
+""" Bavarian City Name GPT // core classes to setup transformer nn"""
 
 
 @dataclass

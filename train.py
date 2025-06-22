@@ -104,13 +104,14 @@ class NameGPTTrainer:
         )
         # Create model directory
         os.makedirs(model_dir, exist_ok=True)
+        # save model_dir for _sample_after_train
+        self.model_dir = model_dir
         # Save model checkpoint
         model_path = os.path.join(model_dir, "model.pt")
         torch.save({
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optim.state_dict(),
         }, model_path)
-        
         # Save configuration and metadata as JSON
         config_data = {
             "train_config": asdict(self.train_config),
@@ -125,11 +126,9 @@ class NameGPTTrainer:
                 "pytorch_version": torch.__version__
             }
         }
-        
         config_path = os.path.join(model_dir, "config.json")
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
-        
         print(f"Model saved to: {model_dir}")
         print(f"  - Model checkpoint: {model_path}")
         print(f"  - Configuration: {config_path}")
@@ -142,7 +141,7 @@ class NameGPTTrainer:
         torch.manual_seed(self.train_config.seed)
         # training loop
         for i in range(self.train_config.train_iter):
-            
+
             # eval loss & print after certain amount of train steps
             if i % self.train_config.eval_interval == 0:
                 losses = self.check_loss()
@@ -160,24 +159,62 @@ class NameGPTTrainer:
             # update params
             self.optim.step()
 
-            #break
+            break
 
-        # Final evaluation after training
+        # final evaluation after training
         final_losses = self.check_loss()
         print(f"Final losses: train_loss {final_losses[self.train_split]:.4f}; eval_loss {final_losses[self.dev_split]:.4f}")
-
-        # Calculate training time
+        # calculate training time
         end_time = datetime.now()
         training_time = (end_time - start_time).total_seconds()
         print(f"Training completed in {training_time:.2f} seconds")
-
-        # Save model if enabled with config flag
+        # save model if enabled with config flag
         if self.train_config.save_model:
             self._save_model(
                 final_train_loss=final_losses[self.train_split],
                 final_dev_loss=final_losses[self.dev_split],
                 training_time=training_time
             )
+        # sample after training if enabled
+        if self.train_config.sample_after_train:
+            # only pass model_dir if model was saved
+            model_dir = getattr(self, 'model_dir', None) if self.train_config.save_model else None
+            self._sample_after_train(model_dir)
+    
+    
+    def _sample_after_train(self, model_dir: str = None):
+        """
+        - generate optionally samples after training with sample.py 
+        - optionally model_dir as arg if samples should be saved
+        """
+        from sample import NameGPTSampler
+        from config import SampleConfig
+        print(f"\nGenerating {self.train_config.num_samples} sample names:")
+        # Load vocabulary for sampler
+        data_dir = self.train_config.data_dir
+        with open(os.path.join(data_dir, 'meta.pkl'), 'rb') as f:
+            meta = pickle.load(f)
+        # Create sampler with current model
+        sample_config = SampleConfig()
+        sample_config.seed = self.train_config.seed
+        sampler = NameGPTSampler(
+            sample_config, 
+            model=self.model, 
+            itos=meta["itos"], 
+            device=self.device,
+        )
+        # Generate and print names
+        self.model.eval()
+        # flag for: only if save_model is enabled -> samples can be saved after train
+        should_save = self.train_config.save_model and self.train_config.save_samples
+        # pass model dir 
+        sampler.generate(
+            self.train_config.num_samples, 
+            print_results=True,
+            save_samples=should_save,
+            model_dir=model_dir
+            )
+        self.model.train()
 
 
 def main():

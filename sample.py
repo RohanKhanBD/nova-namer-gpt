@@ -52,15 +52,18 @@ class NameGPTSampler:
         model.eval()
         return model, meta["itos"]
     
-    def _save_samples(self, samples: List[str]) -> None:
+    def _save_samples(self, samples: List[str], model_dir: str = None) -> None:
         """
         save generated samples to a text file
         - creates samples directory in model folder if doesn't exist
         - saves samples with sequential numbering and line breaks
         - filename format: samples_YYYYMMDD_HHMMSS.txt
+        - you get model_dir provided if called from "sample_after_train"
+        - or derive from path, when "sampling from loaded model"
         """
-        # Get model directory from model path
-        model_dir = os.path.dirname(self.config.model_path)
+        # use provided model_dir or get from model path
+        if model_dir is None:
+            model_dir = os.path.dirname(self.config.model_path)
         samples_dir = os.path.join(model_dir, "samples")
         # Create samples directory if it doesn't exist
         os.makedirs(samples_dir, exist_ok=True)
@@ -77,7 +80,12 @@ class NameGPTSampler:
             f.write('\n'.join(formatted_samples))
         print(f"Samples saved to: {filepath}")
 
-    def generate(self, num_samples: int, print_results: bool = False) -> List[str]:
+    def generate(
+        self, num_samples: int,
+        print_results: bool = False,
+        save_samples: bool = None,
+        model_dir: str = None
+        ) -> List[str]:
         """
         generate names:
         - context: start always with 0 context for linebreak as first char; 
@@ -113,9 +121,16 @@ class NameGPTSampler:
             if print_results:
                 print(f"{i+1:2d}. {generated_name}")
             
-        # save samples as .txt if enabled in config
-        if hasattr(self.config, 'save_samples') and self.config.save_samples:
-            self._save_samples(out)
+        # check if samples should be saved; 2 cases, depending if called from "sample_after_train"
+        # case 1: after or in (): config attr from sampling from saved model
+        # case 2: save_samples is send from "sample_after_train"
+        should_save = save_samples or (hasattr(self.config, 'save_samples') and self.config.save_samples)
+        if should_save:
+            self._save_samples(out, model_dir)
+        
+        # # save samples as .txt if enabled in config
+        # if hasattr(self.config, 'save_samples') and self.config.save_samples:
+        #     self._save_samples(out)
         
         return out     
 
@@ -132,43 +147,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-
-
-
-
-
-
-
-
-
-
-
-#     # generate names of tbd amount; name ends at first line break char
-#     def generate(self, amount_names):
-#         out = []
-#         for _ in range(amount_names):
-#             name = []
-#             # start always with 0 context for linebreak as first char; forward pass expects shape of (1, 1) to work
-#             context = torch.zeros((1, 1), dtype=torch.long)
-#             context = context.to(device)
-#             while True:
-#                 # context must not be greater than context_len, otherwise mat mul in forward pass does not work; cut max latest context
-#                 context_cut = context[:, -context_len:]
-#                 logits, _ = self(context_cut)
-#                 # grab logits at last timestep
-#                 logits = logits[:, -1, :]
-#                 logits = F.softmax(logits, dim=-1)
-#                 idx = torch.multinomial(logits, num_samples=1, replacement=True).item()
-#                 name.append(itos[idx])
-#                 # end name gen when first linebreak is sampled
-#                 if idx == 0:
-#                     break
-#                 else:
-#                     # as long as no linebreak is hit, add last idx to context and sample next char for name
-#                     context = torch.cat((context, torch.tensor([[idx]], dtype=torch.long, device=device)), dim=1)
-#             out.append("".join(name))
-#         return out
-
-
-# # sample from model with amount names
-# m.generate(50)

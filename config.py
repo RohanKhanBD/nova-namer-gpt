@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 """ 
@@ -6,22 +5,25 @@ Bavarian City Name GPT // config classes for:
 - training
 - sampling
 - data processing
-
 """
+
 @dataclass
 class TrainConfig:
     """ training configuration"""
     batch_size: int = 64
     learning_rate: float = 3e-4
-    train_iter: int = 8000
+    train_iter: int = 2000
     eval_iter: int = 150
-    eval_interval: int = 1000
+    eval_interval: int = 500
     device: str = "mps"
     # dir with bin / meta files for training
     data_dir: str = "data"
+    # flag to save model
+    save_model: bool = True
+    model_save_dir: str = "saved_models"
+    model_name: str = "bavGPT"
     # seed for torch
     seed: int = 42
-
 
 
 @dataclass
@@ -42,5 +44,3 @@ class DataConfig:
     # split sizes for train / dev; rest it test
     train_size: int = 0.8
     dev_size: int = 0.9
-
-

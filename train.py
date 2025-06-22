@@ -113,7 +113,7 @@ class NameGPTTrainer:
             # update params
             self.optim.step()
 
-            break
+            #break
 
 
 def main():
@@ -122,7 +122,6 @@ def main():
     model_config = GPTconfig()
     trainer = NameGPTTrainer(train_config, model_config)
     trainer.train_model()
-
 
 
 if __name__ == "__main__":

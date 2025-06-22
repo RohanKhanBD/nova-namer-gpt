@@ -20,3 +20,6 @@ assets/
 # processed .bin files
 data/*.bin
 data/*.pkl
+
+# saved models / checkpoints
+saved_models/

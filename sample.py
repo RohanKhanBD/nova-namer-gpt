@@ -3,12 +3,13 @@ import torch
 import torch.nn.functional as F
 import pickle
 import json
+from datetime import datetime
 from config import SampleConfig
 from model import GPTconfig, GPT
 from typing import List, Dict, Tuple
 
 
-""" 
+"""
 Bavarian City Name GPT // inference script
 - easy sampling from saved models
 - optional possible to sample after training
@@ -18,7 +19,7 @@ Bavarian City Name GPT // inference script
 
 
 class NameGPTSampler:
-    
+   
     def __init__(self, sample_config: SampleConfig, model=None, itos=None, device=None):
         self.config = sample_config
         # if device not as argument from training, take from sample config
@@ -29,7 +30,7 @@ class NameGPTSampler:
         else:
             # Load from file (standalone usage)
             self.model, self.itos = self._load_model()
-    
+
     def _load_model(self) -> Tuple[GPT, Dict]:
         """ load saved model and metadata """
         # load model config from JSON
@@ -50,17 +51,40 @@ class NameGPTSampler:
         model.to(self.device)
         model.eval()
         return model, meta["itos"]
+    
+    def _save_samples(self, samples: List[str]) -> None:
+        """
+        save generated samples to a text file
+        - creates samples directory in model folder if doesn't exist
+        - saves samples with sequential numbering and line breaks
+        - filename format: samples_YYYYMMDD_HHMMSS.txt
+        """
+        # Get model directory from model path
+        model_dir = os.path.dirname(self.config.model_path)
+        samples_dir = os.path.join(model_dir, "samples")
+        # Create samples directory if it doesn't exist
+        os.makedirs(samples_dir, exist_ok=True)
+        # Create timestamp for filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"samples_{timestamp}.txt"
+        filepath = os.path.join(samples_dir, filename)
+        # Format samples with sequential numbering
+        formatted_samples = []
+        for i, sample in enumerate(samples, 1):
+            formatted_samples.append(f"{i}. {sample}")
+        # Write to file
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(formatted_samples))
+        print(f"Samples saved to: {filepath}")
 
     def generate(self, num_samples: int, print_results: bool = False) -> List[str]:
-        """ 
+        """
         generate names:
         - context: start always with 0 context for linebreak as first char; 
         forward pass expects shape of (1, 1) to work
         - single name can have max_length chars
         - crop idx to the last block_size tokens; if longer idx than 
         context_len is used -> no sense & generation index errors
-
-         
         """
         torch.manual_seed(self.config.seed)
         out = []
@@ -88,6 +112,10 @@ class NameGPTSampler:
             
             if print_results:
                 print(f"{i+1:2d}. {generated_name}")
+            
+        # save samples as .txt if enabled in config
+        if hasattr(self.config, 'save_samples') and self.config.save_samples:
+            self._save_samples(out)
         
         return out     
 

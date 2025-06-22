@@ -17,3 +17,6 @@ __pycache__/
 # source data
 assets/
 
+# processed .bin files
+data/*.bin
+data/*.pkl

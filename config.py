@@ -8,6 +8,18 @@ Bavarian City Name GPT // config classes for:
 - data processing
 
 """
+@dataclass
+class TrainConfig:
+    """ training configuration"""
+    batch_size: int = 64
+    learning_rate: int = 3e-4
+    train_iter: int = 8000
+    eval_iter: int = 150
+    eval_interval: int = 1000
+    device: str = "mps"
+    # dir with bin / meta files for training
+    data_dir: str = "data"
+
 
 
 @dataclass
@@ -19,7 +31,7 @@ class DataConfig:
     """
     # data processing
     input_file: str = "data/names.txt"
-    output_dir: str = "data/"
+    output_dir: str = "data"
     # seed for shuffling names
     seed: int = 42
     # raw data validation

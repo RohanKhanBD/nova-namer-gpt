@@ -6,13 +6,12 @@ from typing import Dict, List, Tuple
 import pickle
 
 
-"""
+""" 
+Bavarian City Name GPT // data prep & encoding
 - read in dataset of 60k bavarian city names and do some processing
 - create encoding / decoding functions
-- save train / dev / test splits as bin files
+- save train / dev / test splits as np bin files
 
-how-to:
- run python data/prepare_data.py from project root
 """
 
 

@@ -12,13 +12,15 @@ Bavarian City Name GPT // config classes for:
 class TrainConfig:
     """ training configuration"""
     batch_size: int = 64
-    learning_rate: int = 3e-4
+    learning_rate: float = 3e-4
     train_iter: int = 8000
     eval_iter: int = 150
     eval_interval: int = 1000
     device: str = "mps"
     # dir with bin / meta files for training
     data_dir: str = "data"
+    # seed for torch
+    seed: int = 42
 
 
 

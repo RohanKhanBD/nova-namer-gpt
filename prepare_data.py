@@ -23,6 +23,7 @@ class NameProcessor:
         self.stoi: Dict[str, int] = {}
         self.itos: Dict[int, str] = {}
         self.vocab_size: int = 0
+        self.rng = random.Random(self.config.seed)
 
     def _load_raw_data(self) -> List[str]:
         """
@@ -41,7 +42,7 @@ class NameProcessor:
         names = [name for name in names if self._is_valid_name(name)]
         # shuffle with seed
         random.seed(self.config.seed)
-        random.shuffle(names)
+        self.rng.shuffle(names)
         # print and return valid names
         print(f"Loaded {len(names)} valid names")
         print(f"Sample of first 5 names: {names[:5]}")

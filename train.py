@@ -1,14 +1,15 @@
 
 import os
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import torch.optim as Optim
 import numpy as np
 import pickle
 from config import TrainConfig
 from model import GPTconfig, GPT
+from typing import Tuple, Dict
 
 """ Bavarian City Name GPT // lightweight training scrip """
+
 
 class NameGPTTrainer:
 
@@ -19,8 +20,13 @@ class NameGPTTrainer:
         self.device = train_config.device if torch.backends.mps.is_available() else "cpu"
         # load data
         self.train_split, self.dev_split = self._load_data()
+        # init model
+        self.model = self._init_model()
+        # init optimizer
+        self.optim = Optim.Adam(self.model.parameters(), lr=self.train_config.learning_rate)
+        self._print_model_stats()
     
-    def _load_data(self):
+    def _load_data(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """ load train and val data"""
         data_dir = self.train_config.data_dir
         # Load binary data
@@ -38,82 +44,86 @@ class NameGPTTrainer:
         print(f"Loaded data: train={len(train_split):,} tokens, dev={len(dev_split):,} tokens")
         print(f"Vocabulary size: {meta['vocab_size']}")
         return train_split, dev_split
+    
+    def _init_model(self) -> GPT:
+        """ init GPT model with updated configs and port to device"""
+        model = GPT(self.model_config)
+        m = model.to(self.device)
+        return m
+    
+    def _print_model_stats(self) -> None:
+        """ print total model params after model init"""
+        total_params = sum(p.nelement() for p in self.model.parameters())
+        print(f"Model parameters: {total_params:,}")
+
+    def _get_batch(self, split: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """ delivers a batch of X, Y tensors for specified split """
+        batch_borders = torch.randint(
+            0,
+            len(split) - self.model_config.context_len,
+            (self.train_config.batch_size, )
+        )
+        x = torch.stack([split[t: t+self.model_config.context_len] for t in batch_borders])
+        y = torch.stack([split[t+1: t+self.model_config.context_len+1] for t in batch_borders])
+        return x, y
+    
+    @torch.no_grad()
+    def check_loss(self) -> Dict:
+        """ 
+        - validate loss outsite backprop; 
+        - called from training function after defined training steps 
+        """
+        # activate eval mode
+        self.model.eval()
+        out = {}
+        # calc train & dev loss as averages after defined eval steps
+        for split in [self.train_split, self.dev_split]:
+            losses = torch.zeros(self.train_config.eval_iter)
+            # calc loss for every batch and save result into tensor
+            for i in range(self.train_config.eval_iter):
+                x, y = self._get_batch(split)
+                x, y = x.to(self.device), y.to(self.device)
+                _, loss = self.model(x, y)
+                losses[i] = loss.item()
+            out[split] = losses.mean()
+        self.model.train()
+        return out
+    
+    def train_model(self):
+        """ train model over defined train steps """
+        # seed for torch from train_config
+        torch.manual_seed(self.train_config.seed)
+        # training loop
+        for i in range(self.train_config.train_iter):
+            
+            # eval loss & print after certain amount of train steps
+            if i % self.train_config.eval_interval == 0:
+                losses = self.check_loss()
+                print(f"loss after {i} iterations: train_loss {losses[self.train_split]}; eval_loss {losses[self.dev_split]}")
+            
+            # forward pass
+            Xtr, Ytr = self._get_batch(self.train_split)
+            Xtr, Ytr = Xtr.to(self.device), Ytr.to(self.device)
+            _, loss = self.model(Xtr, Ytr)
+
+            # backward pass
+            self.optim.zero_grad()
+            loss.backward()
+
+            # update params
+            self.optim.step()
+
+            break
 
 
 def main():
     """ main entry point"""
     train_config = TrainConfig()
     model_config = GPTconfig()
-    test_run = NameGPTTrainer(train_config, model_config)
-    
+    trainer = NameGPTTrainer(train_config, model_config)
+    trainer.train_model()
+
 
 
 if __name__ == "__main__":
     main()
-
-
-
-
-# device = "mps" if torch.backends.mps.is_available() else "cpu"
-
-# # data loading: deliver batches of X, Y tensors for chosen split
-# torch.manual_seed(42)
-# def get_batch(split):
-#     """ delivers a batch of X, Y tensors for specified split"""
-#     # get random numbers (in amount of "batch_size") within split boundaries to grab data for the batch samples
-#     batch_borders = torch.randint(0, len(split)-context_len, (batch_size,))
-#     x = torch.stack([split[t : t+context_len] for t in batch_borders])
-#     y = torch.stack([split[t+1 : t+context_len+1] for t in batch_borders])
-#     return x, y
-# x, y = get_batch(train_split)
-# print(x.shape, y.shape)
-
-
-# # validate loss function outsite backprop; called from training function after defined training steps
-# @torch.no_grad()
-# def check_loss():
-#     m.eval()
-#     out = {}
-#     # calc train & dev loss as averages after defined eval steps
-#     for split in [train_split, dev_split]:
-#         losses = torch.zeros(eval_iter)
-#         # calc loss for every batch and save result into tensor
-#         for i in range(eval_iter):
-#             x, y = get_batch(split)
-#             x, y = x.to(device), y.to(device)
-#             _, loss = m(x, y)
-#             losses[i] = loss.item()
-#         out[split] = losses.mean() 
-#     m.train()
-#     return out
-
-# # train model over defined train steps
-# def train_model():
-
-#     for i in range(train_iter):
-    
-#         # eval loss & print after certain amount of train steps
-#         if i % eval_interval == 0:
-#             losses = check_loss()
-#             print(f"loss after {i} iterations: train_loss {losses[train_split]}; eval_loss {losses[dev_split]}")
-        
-#         # forward pass
-#         Xtr, Ytr = get_batch(train_split)
-#         Xtr, Ytr = Xtr.to(device), Ytr.to(device)
-#         _, loss = m(Xtr, Ytr)
-
-#         # backward pass
-#         optimizer.zero_grad()
-#         loss.backward()
-
-#         # update params
-#         optimizer.step()
-
-# train_model()
-
-# # init model, port to gpu, init optimizer, print model params
-# model = GPT()
-# m = model.to(device)
-# optimizer = Optim.Adam(m.parameters(), lr=learning_rate)
-# parameters = m.parameters()
-# print(sum(p.nelement() for p in parameters))

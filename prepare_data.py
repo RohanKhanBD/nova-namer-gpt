@@ -16,7 +16,6 @@ Bavarian City Name GPT // data prep & encoding
 
 
 class NameProcessor:
-    """ processes bavarian names dataset for GPT training """
 
     def __init__(self, config: DataConfig):
         self.config = config

@@ -25,6 +25,16 @@ class TrainConfig:
     # seed for torch
     seed: int = 42
 
+@dataclass
+class SampleConfig:
+    """ sampling configuration """
+    device: str = "mps"
+    model_path: str = "saved_models/bavGPT_20250622_213344/model.pt"
+    num_samples: int = 10
+    max_length: int = 50
+    temperature: float = 1.0
+    seed: int = 42
+
 
 @dataclass
 class DataConfig:

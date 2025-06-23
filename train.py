@@ -28,6 +28,8 @@ class NameGPTTrainer:
         # init optimizer
         self.optim = Optim.Adam(self.model.parameters(), lr=self.train_config.learning_rate)
         self._print_model_stats()
+        # Store loss values at each eval_interval
+        self.detailed_training_results = []  
     
     def _load_data(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """ load train and val data"""
@@ -92,27 +94,30 @@ class NameGPTTrainer:
         self.model.train()
         return out
     
-    def _save_model(self, final_train_loss: float, final_dev_loss: float, training_time: float) -> None:
+    def _save_model(self, final_train_loss: float, final_dev_loss: float, training_time: float, detailed_results: list) -> None:
         """
-        save trained model with configuration metadata
+        - save trained model as .pt in extra model_dir
+        - save configuration metadata .json for each model
+        - save detailed train results in .json
+        - 
         """
-        # Create timestamp for unique model naming
+        # create timestamp for unique model naming
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         model_dir = os.path.join(
             self.train_config.model_save_dir, 
             f"{self.train_config.model_name}_{timestamp}"
         )
-        # Create model directory
+        # create model directory
         os.makedirs(model_dir, exist_ok=True)
         # save model_dir for _sample_after_train
         self.model_dir = model_dir
-        # Save model checkpoint
+        # save model checkpoint
         model_path = os.path.join(model_dir, "model.pt")
         torch.save({
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optim.state_dict(),
         }, model_path)
-        # Save configuration and metadata as JSON
+        # save configuration and metadata as JSON
         config_data = {
             "train_config": asdict(self.train_config),
             "model_config": asdict(self.model_config),
@@ -129,9 +134,29 @@ class NameGPTTrainer:
         config_path = os.path.join(model_dir, "config.json")
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
+        # save enhanced training results
+        training_results_data = {
+            "train_config": asdict(self.train_config),
+            "model_config": asdict(self.model_config),
+            "training_results": {
+                "final_train_loss": round(float(final_train_loss), 3),
+                "final_dev_loss": round(float(final_dev_loss), 3),
+                "training_time": f"{round(training_time / 60, 2)} min",
+                "total_parameters": f"{sum(p.nelement() for p in self.model.parameters()):,}",
+                "device_used": str(self.device),
+                "timestamp": datetime.now().isoformat(),
+                "pytorch_version": torch.__version__,
+                "detailed_training_results": detailed_results
+            }
+        }
+        results_path = os.path.join(model_dir, "training_results.json")
+        with open(results_path, 'w', encoding='utf-8') as f:
+            json.dump(training_results_data, f, indent=2, ensure_ascii=False)
+
         print(f"Model saved to: {model_dir}")
         print(f"  - Model checkpoint: {model_path}")
         print(f"  - Configuration: {config_path}")
+        print(f"  - Enhanced results: {results_path}")
     
     def train_model(self):
         """ train model over defined train steps """
@@ -145,7 +170,9 @@ class NameGPTTrainer:
             # eval loss & print after certain amount of train steps
             if i % self.train_config.eval_interval == 0:
                 losses = self.check_loss()
-                print(f"loss after {i} iterations: train_loss {losses[self.train_split]:.4f}; eval_loss {losses[self.dev_split]:.4f}")
+                result_line = f"loss after {i} iterations: train_loss {losses[self.train_split]:.5f}; eval_loss {losses[self.dev_split]:.5f}"
+                self.detailed_training_results.append(result_line)
+                print(result_line)
             
             # forward pass
             Xtr, Ytr = self._get_batch(self.train_split)
@@ -163,7 +190,7 @@ class NameGPTTrainer:
 
         # final evaluation after training
         final_losses = self.check_loss()
-        print(f"Final losses: train_loss {final_losses[self.train_split]:.4f}; eval_loss {final_losses[self.dev_split]:.4f}")
+        print(f"Final losses: train_loss {final_losses[self.train_split]:.5f}; eval_loss {final_losses[self.dev_split]:.5f}")
         # calculate training time
         end_time = datetime.now()
         training_time = (end_time - start_time).total_seconds()
@@ -173,7 +200,8 @@ class NameGPTTrainer:
             self._save_model(
                 final_train_loss=final_losses[self.train_split],
                 final_dev_loss=final_losses[self.dev_split],
-                training_time=training_time
+                training_time=training_time,
+                detailed_results=self.detailed_training_results
             )
         # sample after training if enabled
         if self.train_config.sample_after_train:

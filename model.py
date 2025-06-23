@@ -15,6 +15,7 @@ class GPTconfig:
     - mandatory as input to instanciate core GTP class
     - training & sampling config params in separate files in config dir
     """
+
     context_len: int = 64  # block_size
     vocab_size: int = 61
     n_embd: int = 256
@@ -41,8 +42,7 @@ class Head(nn.Module):
         self.value = nn.Linear(config.n_embd, h_size, bias=config.a_bias)
         # helper matrix for triangular masking; all zero values above diagonal
         self.register_buffer(
-            "tril",
-            torch.tril(torch.ones(config.context_len, config.context_len))
+            "tril", torch.tril(torch.ones(config.context_len, config.context_len))
         )
         self.dropout = nn.Dropout(config.dropout)
 
@@ -95,15 +95,11 @@ class Ffw(nn.Module):
     def __init__(self, config: GPTconfig):
         super().__init__()
         self.c_fc = nn.Linear(
-            config.n_embd,
-            config.n_embd * config.ffw_widen,
-            bias=config.ffw_bias
+            config.n_embd, config.n_embd * config.ffw_widen, bias=config.ffw_bias
         )
         self.relu = nn.ReLU()
         self.proj = nn.Linear(
-            config.n_embd * config.ffw_widen,
-            config.n_embd,
-            bias=config.ffw_bias
+            config.n_embd * config.ffw_widen, config.n_embd, bias=config.ffw_bias
         )
         self.dropout = nn.Dropout(config.dropout)
 
@@ -136,26 +132,26 @@ class TransformerBlock(nn.Module):
 
 # Core GPT logic setting up NN
 class GPT(nn.Module):
-    """ central class setting up the NN"""
+    """central class setting up the NN"""
 
     def __init__(self, config: GPTconfig):
         super().__init__()
         self.config = config
         # embeddings & transformer blocks
-        self.transformer = nn.ModuleDict(dict(
-            wte=nn.Embedding(config.vocab_size, config.n_embd),
-            wpe=nn.Embedding(config.context_len, config.n_embd),
-            drop=nn.Dropout(config.dropout),
-            h=nn.ModuleList(
-                [TransformerBlock(config) for _ in range(config.n_layer)]
-            ),
-            ln_f=nn.LayerNorm(config.n_embd),
-        ))
+        self.transformer = nn.ModuleDict(
+            dict(
+                wte=nn.Embedding(config.vocab_size, config.n_embd),
+                wpe=nn.Embedding(config.context_len, config.n_embd),
+                drop=nn.Dropout(config.dropout),
+                h=nn.ModuleList(
+                    [TransformerBlock(config) for _ in range(config.n_layer)]
+                ),
+                ln_f=nn.LayerNorm(config.n_embd),
+            )
+        )
         # output layer
         self.lm_head = nn.Linear(
-            config.n_embd,
-            config.vocab_size,
-            bias=config.lm_head_bias
+            config.n_embd, config.vocab_size, bias=config.lm_head_bias
         )
         # weight tying between token embedding and output projection
         self.transformer.wte.weight = self.lm_head.weight
@@ -163,9 +159,7 @@ class GPT(nn.Module):
         self.apply(self._init_weights)
 
     def forward(
-        self,
-        idx: torch.Tensor,
-        targets: Optional[torch.Tensor] = None
+        self, idx: torch.Tensor, targets: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, Optional[torch.tensor]]:
 
         # derive device from idx arg
@@ -191,9 +185,9 @@ class GPT(nn.Module):
         else:
             B, T, C = logits.shape
             # flatten logits into B*T, C
-            logits = logits.view(B*T, C)
+            logits = logits.view(B * T, C)
             # flatten targets into B*T
-            targets = targets.view(B*T)
+            targets = targets.view(B * T)
             loss = F.cross_entropy(logits, targets)
         return logits, loss
 
@@ -213,8 +207,7 @@ class GPT(nn.Module):
         # scaled init to residual projections
         for name, param in self.named_parameters():
             # catches both attention and ffw projections
-            if name.endswith('proj.weight'):
+            if name.endswith("proj.weight"):
                 torch.nn.init.normal_(
-                    param, mean=0.0,
-                    std=0.02/math.sqrt(2 * self.config.n_layer)
+                    param, mean=0.0, std=0.02 / math.sqrt(2 * self.config.n_layer)
                 )

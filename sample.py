@@ -93,7 +93,7 @@ class NameGPTSampler:
         - when sampling from file: always save to file
         - when sampling after training: only print, never save
         """
-        torch.manual_seed(self.config.seed)
+        #torch.manual_seed(self.config.seed)
         out = []
         # sample num_sample new names
         for i in range(num_samples):

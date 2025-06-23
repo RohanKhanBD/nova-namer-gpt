@@ -14,7 +14,7 @@ class TrainConfig:
 
     batch_size: int = 64
     learning_rate: float = 3e-4
-    train_iter: int = 10000
+    train_iter: int = 6500
     eval_iter: int = 150
     eval_interval: int = 500
     device: str = "mps"
@@ -39,8 +39,8 @@ class SampleConfig:
     """
 
     device: str = "mps"
-    model_path: str = "saved_models/bavGPT_20250623_152845/model.pt"
-    num_samples: int = 50
+    model_path: str = "saved_models/bavGPT_20250623_191644/model.pt"
+    num_samples: int = 100
     max_length: int = 50
     temperature: float = 1.0
     seed: int = 42

@@ -1,4 +1,23 @@
 [project]
+name = "bavcityGPT"
+version = "0.1.0"
+description = "A lightweight GPT implementation for generating Bavarian city names"
+dependencies = [
+    "torch",
+    "numpy",
+]
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black", 
+    "flake8",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"[project]
 
 name = "bavcityGPT"
 version = "0.1.0"

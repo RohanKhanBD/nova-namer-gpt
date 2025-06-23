@@ -1,8 +1,20 @@
 # BavCityGPT 🏔️
 
-A state-of-the-art character-level 6.35M transformer model for generating authentic Bavarian City names. This GPT implementation creates novel names by learning from a unique blend of real Bavarian cities, villages, and natural landmarks. 
+A lightweight character-level transformer model (6.35M parameters) for generating authentic Bavarian city names. This GPT implementation learns from a unique dataset combining real Bavarian settlements and natural landmarks to create novel, culturally authentic toponyms.
 
----
+## 🎯 Key Features
+
+- **Lightweight Architecture**: 6.35M parameter transformer optimized for character-level generation
+- **Fast Training**: ~24 minutes on Apple Silicon (M1/M2)
+- **Minimal Dependencies**: Only PyTorch and NumPy required
+- **Complete Pipeline**: From data preparation to inference
+
+## 📊 Model Performance
+
+Best model achieved:
+- **Training Loss**: 1.202 (NLL)
+- **Validation Loss**: 1.446 (NLL)
+- **Convergence**: 6,500 iterations
 
 ## Sample examples
 Selected novel place names inferenced from the best performing model:
@@ -18,8 +30,6 @@ Selected novel place names inferenced from the best performing model:
 - Scharmannshausen
 - Vogeltrück
 
----
-
 ## Model Architecture
 
 BavCityGPT is build on state-of-the-art transformer tech with:
@@ -28,8 +38,6 @@ BavCityGPT is build on state-of-the-art transformer tech with:
 - **6.35M parameters** optimized for Bavarian toponymy
 - **64-token context window** enabling complex name pattern recognition
 - **Few dependencies** Pytorch, Numpy
-
----
 
 ## Dataset: The Bavarian Blend
 
@@ -49,19 +57,8 @@ This unprecedented blend enables the model to generate names that sound authenti
 
 The raw dataset & metadata are in /data.
 
----
 
-## Performance
-
-The best-performing model achieved NLLLoss:
-- **Training Loss**: 1.202
-- **Validation Loss**: 1.446
-- **Training Time**: 23.86 minutes on Apple Silicon
-- **Convergence**: Stable learning over 6,500 iterations
-
----
-
-## Setup / Quick start
+## 🚀 Quick Start
 
 ### 1. Clone the Repository
 
@@ -69,7 +66,6 @@ The best-performing model achieved NLLLoss:
 git clone https://github.com/yourusername/bavarian-city-gpt.git
 cd bavarian-city-gpt
 ```
-
 
 ### 2. Install Dependencies
 
@@ -186,7 +182,23 @@ The script uses settings from `TrainConfig` in `config.py`.
 ```bash
 python sample.py --out_dir saved_models/bavGPT_YYYYMMDD_HHMMSS
 ```
----
+
+## 📁 Project Structure
+
+```
+bavcityGPT/
+├── model.py          # Transformer architecture
+├── train.py          # Training pipeline
+├── sample.py         # Inference engine
+├── prepare.py        # Data processing
+├── config.py         # Configuration dataclasses
+├── pyproject.toml    # Package configuration
+├── data/
+│   ├── names.txt     # Raw input data
+│   └── *.bin         # Processed binary files
+└── saved_models/
+    └── demo/         # Pre-trained demo model
+```
 
 ## Code Structure
 
@@ -226,18 +238,16 @@ Raw Data → NameProcessor → Binary Files → NameGPTTrainer → Saved Model �
 - testcases
 - Try different model / context_len approach with "one name within context padded to fixed len & special start and end chars"
 
----
+## 🙏 Acknowledgments
 
 - Inspired by [nanoGPT](https://github.com/karpathy/nanoGPT) by Andrej Karpathy
 - Training data sourced from public Bavarian geographical databases
 - Built with PyTorch
 
-___
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
 
----
 
 ## Contact
 Feel free to reach out for collaboration or questions:

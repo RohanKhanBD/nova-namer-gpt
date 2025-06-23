@@ -151,7 +151,7 @@ def main():
         2. creating instance of NameProcessor with config
         3. call NameProcessor execute method
     """
-    config = DataConfig
+    config = DataConfig()
     processor = NameProcessor(config)
     processor.execute()
 

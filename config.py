@@ -39,7 +39,7 @@ class SampleConfig:
     """
 
     device: str = "mps"
-    model_path: str = "saved_models/bavGPT_20250623_115225/model.pt"
+    model_path: str = "saved_models/bavGPT_20250623_152845/model.pt"
     num_samples: int = 50
     max_length: int = 50
     temperature: float = 1.0

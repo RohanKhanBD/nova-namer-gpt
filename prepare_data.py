@@ -94,7 +94,9 @@ class NameProcessor:
         print(f"Test has {len(test):,} tokens")
         return train, dev, test
 
-    def _export_data(self, splits: Tuple[List[int], List[int], List[int]]) -> None:
+    def _export_data(
+            self, splits: Tuple[List[int], List[int], List[int]]
+    ) -> None:
         """
         - convert splits into np uint16
         - save processed data to bin files at dir defined in config

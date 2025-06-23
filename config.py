@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-""" 
+"""
 Bavarian City Name GPT // config classes for:
 - training
 - sampling
@@ -10,7 +10,8 @@ Bavarian City Name GPT // config classes for:
 
 @dataclass
 class TrainConfig:
-    """ training configuration"""
+    """training configuration"""
+
     batch_size: int = 64
     learning_rate: float = 3e-4
     train_iter: int = 10000
@@ -32,10 +33,11 @@ class TrainConfig:
 
 @dataclass
 class SampleConfig:
-    """ 
-    - sampling configuration 
+    """
+    - sampling configuration
     - samples are always saved as .txt in model dir
     """
+
     device: str = "mps"
     model_path: str = "saved_models/bavGPT_20250623_115225/model.pt"
     num_samples: int = 50
@@ -51,6 +53,7 @@ class DataConfig:
     - path to load processed datasets so
     - other data processing config
     """
+
     # data processing
     input_file: str = "data/names.txt"
     output_dir: str = "data"

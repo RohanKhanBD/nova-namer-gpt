@@ -1,4 +1,3 @@
-
 import os
 from datetime import datetime
 import torch
@@ -20,54 +19,73 @@ class NameGPTTrainer:
         self.train_config = train_config
         self.model_config = model_config
         # set device mps; if not available cpu
-        self.device = train_config.device if torch.backends.mps.is_available() else "cpu"
+        self.device = (
+            train_config.device if torch.backends.mps.is_available() else "cpu"
+        )
         # load data
         self.train_split, self.dev_split = self._load_data()
         # init components
         self.model_manager = ModelManager(train_config, model_config)
         # init model
         self.model = self.model_manager.create_model()
-        self.optimizer = Optim.Adam(self.model.parameters(), lr=self.train_config.learning_rate)
-        self.metrics = TrainingMetrics(self.model, self.device, self.train_config.eval_iter)
+        self.optimizer = Optim.Adam(
+            self.model.parameters(), lr=self.train_config.learning_rate
+        )
+        self.metrics = TrainingMetrics(
+            self.model, self.device, self.train_config.eval_iter
+        )
         self._print_model_stats()
-    
+
     def _load_data(self) -> Tuple[torch.Tensor, torch.Tensor]:
-        """ load train and val data"""
+        """load train and val data"""
         data_dir = self.train_config.data_dir
         # Load binary data
-        train_data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
-        dev_data = np.memmap(os.path.join(data_dir, 'dev.bin'), dtype=np.uint16, mode='r')
+        train_data = np.memmap(
+            os.path.join(data_dir, "train.bin"), dtype=np.uint16, mode="r"
+        )
+        dev_data = np.memmap(
+            os.path.join(data_dir, "dev.bin"), dtype=np.uint16, mode="r"
+        )
         # Convert to torch tensors
         train_split = torch.from_numpy(train_data.astype(np.int64))
         dev_split = torch.from_numpy(dev_data.astype(np.int64))
         # Load vocabulary metadata
-        meta_path = os.path.join(data_dir, 'meta.pkl')
-        with open(meta_path, 'rb') as f:
+        meta_path = os.path.join(data_dir, "meta.pkl")
+        with open(meta_path, "rb") as f:
             meta = pickle.load(f)
         # Update model config with actual vocab size
         self.model_config.vocab_size = meta["vocab_size"]
-        print(f"Loaded data: train={len(train_split):,} tokens, dev={len(dev_split):,} tokens")
+        print(
+            f"Loaded data: train={len(train_split):,} tokens, dev={len(dev_split):,} tokens"
+        )
         print(f"Vocabulary size: {meta['vocab_size']}")
         return train_split, dev_split
-    
+
     def _print_model_stats(self) -> None:
-        """ print total model params after model init"""
+        """print total model params after model init"""
         total_params = sum(p.nelement() for p in self.model.parameters())
         print(f"Model parameters: {total_params:,}")
 
     def _get_batch(self, split: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """ delivers a batch of X, Y tensors for specified split """
+        """delivers a batch of X, Y tensors for specified split"""
         batch_borders = torch.randint(
             0,
             len(split) - self.model_config.context_len,
-            (self.train_config.batch_size, )
+            (self.train_config.batch_size,),
         )
-        x = torch.stack([split[t: t+self.model_config.context_len] for t in batch_borders])
-        y = torch.stack([split[t+1: t+self.model_config.context_len+1] for t in batch_borders])
+        x = torch.stack(
+            [split[t : t + self.model_config.context_len] for t in batch_borders]
+        )
+        y = torch.stack(
+            [
+                split[t + 1 : t + self.model_config.context_len + 1]
+                for t in batch_borders
+            ]
+        )
         return x, y
-    
+
     def train_model(self):
-        """ train model over defined train steps """
+        """train model over defined train steps"""
         # Record training start time
         start_time = datetime.now()
         # seed for torch from train_config
@@ -81,7 +99,7 @@ class NameGPTTrainer:
                     self.train_split, self.dev_split, self._get_batch
                 )
                 self.metrics.log_progress(i, losses)
-            
+
             # forward pass
             Xtr, Ytr = self._get_batch(self.train_split)
             Xtr, Ytr = Xtr.to(self.device), Ytr.to(self.device)
@@ -94,13 +112,11 @@ class NameGPTTrainer:
             # update params
             self.optimizer.step()
 
-            break
-
         # Final evaluation and saving
         self._finalize_training(start_time)
 
     def _finalize_training(self, start_time: datetime):
-        """ handle final evaluation, saving, and sampling """
+        """handle final evaluation, saving, and sampling"""
         # final evaluation
         final_losses = self.metrics.evaluate_loss(
             self.train_split, self.dev_split, self._get_batch
@@ -115,8 +131,12 @@ class NameGPTTrainer:
         # save model if enabled in config
         if self.train_config.save_model:
             model_dir = self.model_manager.save_model(
-                self.model, self.optimizer, train_loss, dev_loss, 
-                training_time, self.metrics.get_detailed_results()
+                self.model,
+                self.optimizer,
+                train_loss,
+                dev_loss,
+                training_time,
+                self.metrics.get_detailed_results(),
             )
         # sample from model after training if enabled in config
         if self.train_config.sample_after_train:
@@ -124,15 +144,16 @@ class NameGPTTrainer:
 
     def _sample_after_train(self):
         """
-        - generate optionally samples after training with sample.py 
+        - generate optionally samples after training with sample.py
         - samples of this mode are only print, not saved
         """
         from sample import NameGPTSampler
         from config import SampleConfig
+
         print(f"\nGenerating {self.train_config.num_samples} sample names:")
         # Load vocabulary for sampler
         data_dir = self.train_config.data_dir
-        with open(os.path.join(data_dir, 'meta.pkl'), 'rb') as f:
+        with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
             meta = pickle.load(f)
         # Create sampler with current model
         sample_config = SampleConfig()
@@ -145,46 +166,52 @@ class NameGPTTrainer:
         )
         # Generate and print names
         self.model.eval()
-        # pass model dir 
+        # pass model dir
         sampler.generate(self.train_config.num_samples)
         self.model.train()
 
 
 class ModelManager:
-    """ handles model initi and saving ops """
-    
+    """handles model init and saving ops"""
+
     def __init__(self, train_config: TrainConfig, model_config: GPTconfig):
         self.train_config = train_config
         self.model_config = model_config
-        self.device = train_config.device if torch.backends.mps.is_available() else "cpu"
-    
+        self.device = (
+            train_config.device if torch.backends.mps.is_available() else "cpu"
+        )
+
     def create_model(self) -> GPT:
-        """ init and return GPT model onto device"""
+        """init and return GPT model onto device"""
         model = GPT(self.model_config)
         return model.to(self.device)
-    
-    def save_model(self, 
-                   model: GPT, 
-                   optimizer, 
-                   final_train_loss: float, 
-                   final_dev_loss: float, 
-                   training_time: float, 
-                   detailed_results: list
+
+    def save_model(
+        self,
+        model: GPT,
+        optimizer,
+        final_train_loss: float,
+        final_dev_loss: float,
+        training_time: float,
+        detailed_results: list,
     ) -> str:
-        """ save model and return the model directory path """
+        """save model and return the model directory path"""
         # create unique model dir
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         model_dir = os.path.join(
-            self.train_config.model_save_dir, 
-            f"{self.train_config.model_name}_{timestamp}"
+            self.train_config.model_save_dir,
+            f"{self.train_config.model_name}_{timestamp}",
         )
         os.makedirs(model_dir, exist_ok=True)
         # save model checkpoint in model_dir
         model_path = os.path.join(model_dir, "model.pt")
-        torch.save({
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-        }, model_path)
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+            },
+            model_path,
+        )
         # save combined config with training results
         config_path = os.path.join(model_dir, "config.json")
         config_data = {
@@ -198,35 +225,32 @@ class ModelManager:
                 "device_used": str(self.device),
                 "timestamp": datetime.now().isoformat(),
                 "pytorch_version": torch.__version__,
-                "detailed_training_results": detailed_results
-            }
+                "detailed_training_results": detailed_results,
+            },
         }
         # save file & print stats
-        with open(config_path, 'w', encoding='utf-8') as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
         print(f"Model saved to: {model_dir}")
         print(f"  - Model checkpoint: {model_path}")
         print(f"  - Configuration: {config_path}")
         return model_dir
-    
+
 
 class TrainingMetrics:
-    """ handles loss tracking and evaluation during training """
-    
+    """handles loss tracking and evaluation during training"""
+
     def __init__(self, model, device: str, eval_iter: int):
         self.model = model
         self.device = device
         self.eval_iter = eval_iter
         self.detailed_results: List[str] = []
-    
+
     @torch.no_grad()
     def evaluate_loss(
-        self, 
-        train_split: torch.Tensor, 
-        dev_split: torch.Tensor, 
-        get_batch_fn
+        self, train_split: torch.Tensor, dev_split: torch.Tensor, get_batch_fn
     ) -> Dict[torch.Tensor, float]:
-        """ evaluate loss on train and dev splits """
+        """evaluate loss on train and dev splits"""
         self.model.eval()
         losses = {}
         # calc train & dev loss as averages after defined eval steps
@@ -242,23 +266,26 @@ class TrainingMetrics:
         # change to train mode after eval
         self.model.train()
         return losses
-    
+
     def log_progress(self, iteration: int, losses: Dict) -> None:
-        """ log training progress and store for detailed results """
+        """log training progress and store for detailed results"""
         train_loss = list(losses.values())[0]
         dev_loss = list(losses.values())[1]
-        
-        result_line = f"loss after {iteration} iterations: train_loss {train_loss:.5f}; eval_loss {dev_loss:.5f}"
+
+        result_line = (
+            f"loss after {iteration} iterations: train_loss {train_loss:.5f}; "
+            f"eval_loss {dev_loss:.5f}"
+        )
         self.detailed_results.append(result_line)
         print(result_line)
-    
+
     def get_detailed_results(self) -> List[str]:
-        """ return all logged training progress """
+        """return all logged training progress"""
         return self.detailed_results
 
 
 def main():
-    """ main entry point"""
+    """main entry point"""
     train_config = TrainConfig()
     model_config = GPTconfig()
     trainer = NameGPTTrainer(train_config, model_config)

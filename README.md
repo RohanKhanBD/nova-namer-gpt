@@ -45,7 +45,7 @@ The training dataset represents a novel approach to place name generation, combi
 - **Cleaned toponymic suffixes** (removed "-berg", "-see", "-wald") to prevent overfitting while preserving linguistic roots
 - **Unique prefixes and stems** that capture Bavaria's diverse geographical heritage
 
-This unprecedented blend enables the model to generate names that sound authentically Bavarian while creating entirely novel combinations—something no existing model has achieved.
+This unprecedented blend enables the model to generate names that sound authentically Bavarian while creating entirely novel combinations
 
 The raw dataset & metadata are in /data.
 
@@ -62,9 +62,65 @@ The best-performing model achieved NLLLoss:
 ---
 
 ## Setup / Quick start
-tbd
 
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/bavarian-city-gpt.git
+cd bavarian-city-gpt
+```
+
+
+### 2. Install Dependencies
+
+```bash
+pip install -e .
+```
+
+### 3. Generate Names with Demo model
+
+```bash
+python sample.py
+```
+- This will generate 50 Bavarian city names using the pre-trained demo model.
+- The samples will be printed and saved at .txt file into a samples folder in the model dir.
 ---
+
+## Usage
+
+### Basic Sampling
+
+```bash
+# Generate 50 names (default)
+python sample.py
+
+# Generate more names
+python sample.py --num_samples 100
+
+# Adjust creativity (higher = more random)
+python sample.py --temperature 1.5
+
+# Combine options
+python sample.py --num_samples 20 --temperature 0.8
+```
+### Advanced Usage
+
+```bash
+# Use a specific model
+python sample.py --out_dir saved_models/your_model_directory
+
+# Generate with custom settings
+python sample.py --out_dir saved_models/demo --num_samples 200 --temperature 1.2
+```
+
+### Command Line Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--out_dir` | `saved_models/demo` | Directory containing model checkpoint |
+| `--num_samples` | `50` | Number of names to generate |
+| `--temperature` | `1.0` | Sampling temperature (0.1 = conservative, 2.0 = creative) |
+
 
 ## Code Structure
 

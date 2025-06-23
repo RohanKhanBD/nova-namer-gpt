@@ -24,8 +24,10 @@ class NameGPTSampler:
         self.config = sample_config
         # if device not as argument from training, take from sample config
         self.device = device or (sample_config.device if torch.backends.mps.is_available() else "cpu")
-        # use provided model and vocab from training
-        if model is not None and itos is not None:
+        # Determine mode: after_training (model+itos provided) vs from_file (load from disk)
+        self.is_after_training = model is not None and itos is not None
+        if self.is_after_training:
+            # Use provided model and vocab from training
             self.model, self.itos = model, itos
         else:
             # Load from file (standalone usage)
@@ -52,18 +54,15 @@ class NameGPTSampler:
         model.eval()
         return model, meta["itos"]
     
-    def _save_samples(self, samples: List[str], model_dir: str = None) -> None:
+    def _save_samples(self, samples: List[str]) -> None:
         """
         save generated samples to a text file
         - creates samples directory in model folder if doesn't exist
         - saves samples with sequential numbering and line breaks
         - filename format: samples_YYYYMMDD_HHMMSS.txt
-        - you get model_dir provided if called from "sample_after_train"
-        - or derive from path, when "sampling from loaded model"
         """
-        # use provided model_dir or get from model path
-        if model_dir is None:
-            model_dir = os.path.dirname(self.config.model_path)
+        # get dir from model path
+        model_dir = os.path.dirname(self.config.model_path)
         samples_dir = os.path.join(model_dir, "samples")
         # Create samples directory if it doesn't exist
         os.makedirs(samples_dir, exist_ok=True)
@@ -72,27 +71,23 @@ class NameGPTSampler:
         filename = f"samples_{timestamp}.txt"
         filepath = os.path.join(samples_dir, filename)
         # Format samples with sequential numbering
-        formatted_samples = []
-        for i, sample in enumerate(samples, 1):
-            formatted_samples.append(f"{i}. {sample}")
-        # Write to file
+        formatted_samples = [f"{i}. {sample}" for i, sample in enumerate(samples, 1)]
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write('\n'.join(formatted_samples))
         print(f"Samples saved to: {filepath}")
 
     def generate(
         self, num_samples: int,
-        print_results: bool = False,
-        save_samples: bool = None,
-        model_dir: str = None
-        ) -> List[str]:
+    ) -> List[str]:
         """
         generate names:
         - context: start always with 0 context for linebreak as first char; 
         forward pass expects shape of (1, 1) to work
         - single name can have max_length chars
         - crop idx to the last block_size tokens; if longer idx than 
-        context_len is used -> no sense & generation index errors
+        - context_len is used -> no sense & generation index errors
+        - when sampling from file: always save to file
+        - when sampling after training: only print, never save
         """
         torch.manual_seed(self.config.seed)
         out = []
@@ -117,20 +112,12 @@ class NameGPTSampler:
             
             generated_name = "".join(name)
             out.append(generated_name)
-            
-            if print_results:
-                print(f"{i+1:2d}. {generated_name}")
-            
-        # check if samples should be saved; 2 cases, depending if called from "sample_after_train"
-        # case 1: after or in (): config attr from sampling from saved model
-        # case 2: save_samples is send from "sample_after_train"
-        should_save = save_samples or (hasattr(self.config, 'save_samples') and self.config.save_samples)
-        if should_save:
-            self._save_samples(out, model_dir)
+            print(f"{i+1:2d}. {generated_name}")
         
-        # # save samples as .txt if enabled in config
-        # if hasattr(self.config, 'save_samples') and self.config.save_samples:
-        #     self._save_samples(out)
+        # Auto-save behavior based on mode
+        if not self.is_after_training:
+            # Sampling from file -> always save
+            self._save_samples(out)
         
         return out     
 
@@ -139,9 +126,8 @@ def main():
     """ central entry point"""
     config = SampleConfig()
     sampler = NameGPTSampler(config)
-    names = sampler.generate(config.num_samples, print_results=True)
+    names = sampler.generate(config.num_samples)
     print(f"\nGenerated {len(names)} Bavarian city names.")
-    print(names)
 
 
 if __name__ == "__main__":

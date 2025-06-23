@@ -7,12 +7,13 @@ Bavarian City Name GPT // config classes for:
 - data processing
 """
 
+
 @dataclass
 class TrainConfig:
     """ training configuration"""
     batch_size: int = 64
     learning_rate: float = 3e-4
-    train_iter: int = 8000
+    train_iter: int = 100
     eval_iter: int = 150
     eval_interval: int = 500
     device: str = "mps"
@@ -26,22 +27,21 @@ class TrainConfig:
     seed: int = 42
     # create samples after training optionally
     sample_after_train: bool = True
-    num_samples: int = 10
-    # works only if save_model = True
-    save_samples: bool = True
+    num_samples: int = 20
 
 
 @dataclass
 class SampleConfig:
-    """ sampling configuration """
+    """ 
+    - sampling configuration 
+    - samples are always saved as .txt in model dir
+    """
     device: str = "mps"
-    model_path: str = "saved_models/bavGPT_20250622_233949/model.pt"
+    model_path: str = "saved_models/bavGPT_20250623_115225/model.pt"
     num_samples: int = 50
     max_length: int = 50
     temperature: float = 1.0
     seed: int = 42
-    # saves samples as .txt at respective saved_models
-    save_samples: bool = True
 
 
 @dataclass

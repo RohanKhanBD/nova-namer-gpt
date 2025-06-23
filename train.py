@@ -159,7 +159,7 @@ class NameGPTTrainer:
             # update params
             self.optim.step()
 
-            break
+            #break
 
         # final evaluation after training
         final_losses = self.check_loss()
@@ -177,15 +177,12 @@ class NameGPTTrainer:
             )
         # sample after training if enabled
         if self.train_config.sample_after_train:
-            # only pass model_dir if model was saved
-            model_dir = getattr(self, 'model_dir', None) if self.train_config.save_model else None
-            self._sample_after_train(model_dir)
+            self._sample_after_train()
     
-    
-    def _sample_after_train(self, model_dir: str = None):
+    def _sample_after_train(self):
         """
         - generate optionally samples after training with sample.py 
-        - optionally model_dir as arg if samples should be saved
+        - samples of this mode are only print, not saved
         """
         from sample import NameGPTSampler
         from config import SampleConfig
@@ -198,22 +195,15 @@ class NameGPTTrainer:
         sample_config = SampleConfig()
         sample_config.seed = self.train_config.seed
         sampler = NameGPTSampler(
-            sample_config, 
-            model=self.model, 
-            itos=meta["itos"], 
+            sample_config,
+            model=self.model,
+            itos=meta["itos"],
             device=self.device,
         )
         # Generate and print names
         self.model.eval()
-        # flag for: only if save_model is enabled -> samples can be saved after train
-        should_save = self.train_config.save_model and self.train_config.save_samples
         # pass model dir 
-        sampler.generate(
-            self.train_config.num_samples, 
-            print_results=True,
-            save_samples=should_save,
-            model_dir=model_dir
-            )
+        sampler.generate(self.train_config.num_samples)
         self.model.train()
 
 

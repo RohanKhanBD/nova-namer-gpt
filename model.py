@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from dataclasses import dataclass
 from typing import Optional, Tuple
-#from config import GPTconfig
 
 """ Bavarian City Name GPT // core classes to setup transformer nn"""
 
@@ -131,11 +130,17 @@ class GPT(nn.Module):
             wte=nn.Embedding(config.vocab_size, config.n_embd),
             wpe=nn.Embedding(config.context_len, config.n_embd),
             drop=nn.Dropout(config.dropout),
-            h=nn.ModuleList([TransformerBlock(config) for _ in range(config.n_layer)]),
+            h=nn.ModuleList(
+                [TransformerBlock(config) for _ in range(config.n_layer)]
+            ),
             ln_f=nn.LayerNorm(config.n_embd),
         ))
         # output layer
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=config.lm_head_bias)
+        self.lm_head = nn.Linear(
+            config.n_embd,
+            config.vocab_size,
+            bias=config.lm_head_bias
+        )
  
     def forward(
         self, 

@@ -186,8 +186,6 @@ class NameGPTTrainer:
             # update params
             self.optim.step()
 
-            break
-
         # final evaluation after training
         final_losses = self.check_loss()
         print(f"Final losses: train_loss {final_losses[self.train_split]:.5f}; eval_loss {final_losses[self.dev_split]:.5f}")

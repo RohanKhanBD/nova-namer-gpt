@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple
 import pickle
 
 
-""" 
+"""
 Bavarian City Name GPT // data prep & encoding
 - read in dataset of 60k bavarian city names and do some processing
 - create encoding / decoding functions
@@ -33,9 +33,12 @@ class NameProcessor:
         print(f"Loading data from {self.config.input_file}")
         # throw error if file not found
         if not os.path.exists(self.config.input_file):
-            raise FileNotFoundError(f"Data file not found: {self.config.input_file}")
+            raise FileNotFoundError(
+                f"Data file not found: {self.config.input_file}"
+            )
         # load all names into memory
         with open(self.config.input_file, mode="r", encoding="utf-8") as file:
+            # excplicitly don't strip -> newline chars are kept for model
             names = file.readlines()
         # check names for certain criteria
         names = [name for name in names if self._is_valid_name(name)]
@@ -48,15 +51,20 @@ class NameProcessor:
         return names
 
     def _is_valid_name(self, name: str) -> bool:
-        """ simple check if name meets certain criteria; as of now, check only len """
-        if len(name) < self.config.min_name_length or len(name) > self.config.max_name_length:
+        """simple check if name meets criteria; as of now, check only len"""
+        if (
+            len(name) < self.config.min_name_length
+            or len(name) > self.config.max_name_length
+        ):
             return False
         else:
             return True
-        
+
     def _build_vocabulary(self, names: List[str]) -> None:
-        """ creates mapping dicts from all distinct chars """
-        all_chars = list(sorted(set([("".join(char)) for name in names for char in name])))
+        """creates mapping dicts from all distinct chars"""
+        all_chars = list(
+            sorted(set([char for name in names for char in name]))
+        )
         # create mappings
         self.itos = {i: s for i, s in enumerate(all_chars)}
         self.stoi = {s: i for i, s in self.itos.items()}
@@ -65,25 +73,27 @@ class NameProcessor:
         print(f"All Characters: {repr(''.join(all_chars))}")
 
     def encode(self, text: str) -> List[int]:
-        """ encodes str into list of indexes with mapping dict """
+        """encodes str into list of indexes with mapping dict"""
         return [self.stoi[i] for i in text]
-    
+
     def decode(self, indexes: List[int]) -> str:
-        """ returns joined string for list of indexes with mapping dict """
+        """returns joined string for list of indexes with mapping dict"""
         return "".join([self.itos[i] for i in indexes])
-    
-    def _create_splits(self, names: List[int]) -> Tuple[List[int], List[int], List[int]]:
-        """ split names into train / dev / test """
+
+    def _create_splits(
+        self, names: List[int]
+    ) -> Tuple[List[int], List[int], List[int]]:
+        """split names into train / dev / test"""
         boundary_1 = int(self.config.train_size * len(names))
         boundary_2 = int(self.config.dev_size * len(names))
         train = names[:boundary_1]
-        dev = names[boundary_1: boundary_2]
+        dev = names[boundary_1:boundary_2]
         test = names[boundary_2:]
         print(f"Train has {len(train):,} tokens")
         print(f"Dev has {len(dev):,} tokens")
         print(f"Test has {len(test):,} tokens")
         return train, dev, test
-    
+
     def _export_data(self, splits: Tuple[List[int], List[int], List[int]]) -> None:
         """
         - convert splits into np uint16
@@ -111,9 +121,9 @@ class NameProcessor:
             "itos": self.itos,
             "stoi": self.stoi,
         }
-        with open(os.path.join(self.config.output_dir, 'meta.pkl'), 'wb') as f:
+        with open(os.path.join(self.config.output_dir, "meta.pkl"), "wb") as f:
             pickle.dump(meta, f)
-    
+
     def execute(self) -> None:
         """
         - load raw names from file

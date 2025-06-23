@@ -13,7 +13,7 @@ class TrainConfig:
     """ training configuration"""
     batch_size: int = 64
     learning_rate: float = 3e-4
-    train_iter: int = 100
+    train_iter: int = 10000
     eval_iter: int = 150
     eval_interval: int = 500
     device: str = "mps"

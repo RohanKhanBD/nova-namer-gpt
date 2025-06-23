@@ -121,6 +121,72 @@ python sample.py --out_dir saved_models/demo --num_samples 200 --temperature 1.2
 | `--num_samples` | `50` | Number of names to generate |
 | `--temperature` | `1.0` | Sampling temperature (0.1 = conservative, 2.0 = creative) |
 
+--- 
+
+## Training Your Own Model
+
+### 1. Prepare Data
+
+Place your text data in `data/names.txt` (one name per line):
+
+```
+Burgsinn
+Leitenthal
+Maisenberg
+Weidensorger
+...
+```
+
+### 2. Process Data
+
+```bash
+python prepare_data.py
+```
+
+This creates binary files for efficient training.
+
+### 3. Configure Model
+
+Edit the configuration in `model.py`:
+
+```python
+@dataclass
+class GPTconfig:
+    context_len: int = 64  
+    vocab_size: int = 61
+    n_embd: int = 256
+    n_head: int = 8
+    # ... other settings
+```
+
+### 3. Configure Training
+
+Edit the configuration in `config.py`:
+
+```python
+@dataclass
+class TrainConfig:
+    batch_size: int = 64
+    learning_rate: float = 3e-4
+    train_iter: int = 10000        
+    device: str = "mps"
+    # ... other settings
+```
+
+### 4. Train Model
+
+```bash
+python train.py
+```
+
+The script uses settings from `TrainConfig` in `config.py`.
+
+### 5. Sample from Your Model
+
+```bash
+python sample.py --out_dir saved_models/bavGPT_YYYYMMDD_HHMMSS
+```
+---
 
 ## Code Structure
 
@@ -162,6 +228,12 @@ Raw Data → NameProcessor → Binary Files → NameGPTTrainer → Saved Model �
 
 ---
 
+- Inspired by [nanoGPT](https://github.com/karpathy/nanoGPT) by Andrej Karpathy
+- Training data sourced from public Bavarian geographical databases
+- Built with PyTorch
+
+___
+
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
 
@@ -173,4 +245,3 @@ Feel free to reach out for collaboration or questions:
 https://github.com/kenobijr
 
 [mail](mailto:22.scree_rhino@icloud.com)
-

@@ -159,7 +159,7 @@ class NameGPTTrainer:
             # update params
             self.optim.step()
 
-            #break
+            break
 
         # final evaluation after training
         final_losses = self.check_loss()

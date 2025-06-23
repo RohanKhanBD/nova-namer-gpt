@@ -21,5 +21,3 @@ assets/
 data/*.bin
 data/*.pkl
 
-# saved models / checkpoints
-saved_models/

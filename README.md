@@ -47,6 +47,8 @@ The training dataset represents a novel approach to place name generation, combi
 
 This unprecedented blend enables the model to generate names that sound authentically Bavarian while creating entirely novel combinations—something no existing model has achieved.
 
+The raw dataset & metadata are in /data.
+
 ---
 
 ## Performance

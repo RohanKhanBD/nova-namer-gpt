@@ -17,11 +17,13 @@ dev = [
 
 [build-system]
 requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"[project]
+build-backend = "setuptools.build_meta"
 
-name = "bavcityGPT"
-version = "0.1.0"
-dependencies = [
-    "torch",
-    "numpy",
-]
+[tool.black]
+line-length = 80
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.flake8]
+max-line-length = 80
+extend-ignore = ["E203", "W503"]

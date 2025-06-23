@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 import pickle
 import json
+import argparse
 from datetime import datetime
 from config import SampleConfig
 from model import GPTconfig, GPT
@@ -20,8 +21,17 @@ Bavarian City Name GPT // inference script
 
 class NameGPTSampler:
 
-    def __init__(self, sample_config: SampleConfig, model=None, itos=None, device=None):
+    def __init__(
+        self,
+        sample_config: SampleConfig,
+        model_path=None,
+        model=None,
+        itos=None,
+        device=None,
+    ):
         self.config = sample_config
+        # received from main() as default or command-line argument
+        self.model_path = model_path
         # if device not as argument from training, take from sample config
         self.device = device or (
             sample_config.device if torch.backends.mps.is_available() else "cpu"
@@ -38,7 +48,7 @@ class NameGPTSampler:
     def _load_model(self) -> Tuple[GPT, Dict]:
         """load saved model and metadata"""
         # load model config from JSON
-        config_path = os.path.dirname(self.config.model_path)
+        config_path = os.path.dirname(self.model_path)
         with open(os.path.join(config_path, "config.json"), "r") as f:
             saved_config = json.load(f)
         # create model config
@@ -50,7 +60,7 @@ class NameGPTSampler:
             meta = pickle.load(f)
         # Init and load model
         model = GPT(model_config)
-        checkpoint = torch.load(self.config.model_path, map_location=self.device)
+        checkpoint = torch.load(self.model_path, map_location=self.device)
         model.load_state_dict(checkpoint["model_state_dict"])
         model.to(self.device)
         model.eval()
@@ -64,7 +74,7 @@ class NameGPTSampler:
         - filename format: samples_YYYYMMDD_HHMMSS.txt
         """
         # get dir from model path
-        model_dir = os.path.dirname(self.config.model_path)
+        model_dir = os.path.dirname(self.model_path)
         samples_dir = os.path.join(model_dir, "samples")
         # Create samples directory if it doesn't exist
         os.makedirs(samples_dir, exist_ok=True)
@@ -73,7 +83,9 @@ class NameGPTSampler:
         filename = f"samples_{timestamp}.txt"
         filepath = os.path.join(samples_dir, filename)
         # Format samples with sequential numbering
-        formatted_samples = [f"{i}. {sample}" for i, sample in enumerate(samples, 1)]
+        formatted_samples = [
+            f"{i}. {sample}" for i, sample in enumerate(samples, 1)
+        ]
         with open(filepath, "w", encoding="utf-8") as f:
             f.write("\n".join(formatted_samples))
         print(f"Samples saved to: {filepath}")
@@ -93,12 +105,14 @@ class NameGPTSampler:
         - when sampling from file: always save to file
         - when sampling after training: only print, never save
         """
-        #torch.manual_seed(self.config.seed)
+
         out = []
         # sample num_sample new names
         for i in range(num_samples):
             name = []
-            context = torch.zeros((1, 1), dtype=torch.long, device=self.device)  # B,T
+            context = torch.zeros(
+                (1, 1), dtype=torch.long, device=self.device
+            )  # B,T
             for _ in range(self.config.max_length):
                 # context cut
                 context_cut = context[:, -self.model.config.context_len :]
@@ -129,9 +143,35 @@ class NameGPTSampler:
 
 
 def main():
-    """central entry point"""
+    """central entry point with command line arguments"""
+
+    parser = argparse.ArgumentParser(description="Generate Bavarian city names")
+    # demo path as default
+    parser.add_argument(
+        "--out_dir",
+        default="saved_models/demo",
+        help="Directory containing model checkpoint",
+    )
+    parser.add_argument(
+        "--num_samples",
+        type=int,
+        default=50,
+        help="Number of names to generate",
+    )
+    parser.add_argument(
+        "--temperature", type=float, default=1.0, help="Sampling temperature"
+    )
+
+    args = parser.parse_args()
+    # build the model path from the directory
+    model_path = os.path.join(args.out_dir, "model.pt")
+    # create config and set the model path
     config = SampleConfig()
-    sampler = NameGPTSampler(config)
+    config.num_samples = args.num_samples
+    config.temperature = args.temperature
+    # pass the model_path directly to the sampler
+    sampler = NameGPTSampler(config, model_path=model_path)
+    sampler.config.model_path = model_path
     names = sampler.generate(config.num_samples)
     print(f"\nGenerated {len(names)} Bavarian city names.")
 

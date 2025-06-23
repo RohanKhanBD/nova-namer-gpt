@@ -1,0 +1,9 @@
+# Ignore all files and directories in saved_models/
+*
+
+# But keep the demo directory and its contents
+!demo/
+!demo/**
+
+# Keep this .gitignore file itself
+!.gitignore

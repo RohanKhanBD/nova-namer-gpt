@@ -9,15 +9,17 @@ import pickle
 """
 Bavarian City Name GPT // data prep & encoding
 - read in dataset of 60k bavarian city names and do some processing
+- default params / options are saved in config.py -> DataConfig 
 - create encoding / decoding functions
 - save train / dev / test splits as np bin files
-
 """
 
 
 class NameProcessor:
 
     def __init__(self, config: DataConfig):
+        if not isinstance(config, DataConfig):
+            raise TypeError("Invalid config type!")
         self.config = config
         self.stoi: Dict[str, int] = {}
         self.itos: Dict[int, str] = {}
@@ -27,24 +29,18 @@ class NameProcessor:
     def _load_raw_data(self) -> List[str]:
         """
         - loads all names into memory as list of str
-        - checks names for len boundaries
-        - shuffles them with seed from config
+        - checks names for len boundaries & shuffles them with seed from config
         """
         print(f"Loading data from {self.config.input_file}")
         # throw error if file not found
         if not os.path.exists(self.config.input_file):
-            raise FileNotFoundError(
-                f"Data file not found: {self.config.input_file}"
-            )
+            raise FileNotFoundError(f"Data file not found: {self.config.input_file}")
         # load all names into memory
         with open(self.config.input_file, mode="r", encoding="utf-8") as file:
             # excplicitly don't strip -> newline chars are kept for model
             names = file.readlines()
         # check names for certain criteria
         names = [name for name in names if self._is_valid_name(name)]
-        # shuffle with seed
-        random.seed(self.config.seed)
-        self.rng.shuffle(names)
         # print and return valid names
         print(f"Loaded {len(names)} valid names")
         print(f"Sample of first 5 names: {names[:5]}")
@@ -59,6 +55,12 @@ class NameProcessor:
             return False
         else:
             return True
+    
+    def _shuffle_names(self, names: List[str]) -> List[str]:
+        """ shuffle names using seeded RNG, returns a new shuffled list """
+        shuffled_names = names.copy()
+        self.rng.shuffle(shuffled_names)
+        return shuffled_names
 
     def _build_vocabulary(self, names: List[str]) -> None:
         """creates mapping dicts from all distinct chars"""
@@ -135,6 +137,7 @@ class NameProcessor:
         - export splits to np bin files & save some metadata
         """
         names = self._load_raw_data()
+        names = self._shuffle_names(names)
         self._build_vocabulary(names)
         encoded_data = self.encode("".join(names))
         train, dev, test = self._create_splits(encoded_data)

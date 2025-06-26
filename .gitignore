@@ -7,8 +7,12 @@ venv/
 .python-version
 
 # python chache
-__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
 
+# macOS system files
+**/.DS_Store
 .DS_Store
 
 # jupyter

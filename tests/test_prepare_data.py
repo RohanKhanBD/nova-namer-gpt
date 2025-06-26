@@ -4,6 +4,7 @@ import pytest
 import tempfile
 import os
 
+
 @pytest.fixture
 def temp_names_file_valid():
     """ temp text file with 5 names in accepted length"""
@@ -13,6 +14,7 @@ def temp_names_file_valid():
         temp_path = f.name
     yield temp_path
     os.unlink(temp_path)
+
 
 @pytest.fixture
 def temp_names_file_invalid():
@@ -24,10 +26,22 @@ def temp_names_file_invalid():
     yield temp_path
     os.unlink(temp_path)
 
+
+@pytest.fixture
+def vocab_test_cases():
+    """ essential test cases for vocabulary building """
+    return {
+        'basic': ["abc\n", "def\n"],  # expected: ['\n', 'a', 'b', 'c', 'd', 'e', 'f'] = 7 chars
+        'duplicates': ["aaa\n", "abc\n"],  # expected: ['\n', 'a', 'b', 'c'] = 4 chars  
+        'german': ["München\n", "Nürnberg\n"]  # test umlauts + real data
+    }
+
+
 def test_NameProcessor_init_invalid_config():
     with pytest.raises(TypeError):
         config = TrainConfig()
         processor = NameProcessor(config)
+
 
 def test_NameProcessor_init():
     config = DataConfig()
@@ -39,12 +53,14 @@ def test_NameProcessor_init():
     assert processor.vocab_size == 0
     assert hasattr(processor, "rng")
 
+
 def test_load_raw_data_no_input_file():
     with pytest.raises(FileNotFoundError):
         config = DataConfig()
         config.input_file = "this_file_does_not_exist.txt"
         processor = NameProcessor(config)
         processor._load_raw_data()
+
 
 def test_load_raw_data_valid(temp_names_file_valid):
     config = DataConfig()
@@ -54,6 +70,7 @@ def test_load_raw_data_valid(temp_names_file_valid):
     assert len(names) == 4
     assert "München\n" in names
 
+
 def test_load_raw_data_invalid(temp_names_file_invalid):
     config = DataConfig()
     config.input_file = temp_names_file_invalid
@@ -61,6 +78,7 @@ def test_load_raw_data_invalid(temp_names_file_invalid):
     names = processor._load_raw_data()
     assert len(names) == 1
     assert "Berlin\n" in names
+
 
 def test_is_valid_name():
     config = DataConfig()
@@ -71,4 +89,50 @@ def test_is_valid_name():
     assert not processor._is_valid_name("VeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhhhhh\n")
 
 
+def test_shuffle_names(temp_names_file_valid):
+    config = DataConfig()
+    config.input_file = temp_names_file_valid
+    # first processor
+    processor1 = NameProcessor(config)
+    names1 = processor1._load_raw_data()
+    shuffled1 = processor1._shuffle_names(names1)
+    # second processor with SAME seed
+    processor2 = NameProcessor(config)
+    names2 = processor2._load_raw_data()
+    shuffled2 = processor2._shuffle_names(names2)
+    assert names1 is not shuffled1
+    assert names2 is not shuffled2
+    assert shuffled1 == shuffled2
 
+
+def test_vocabulary_size(vocab_test_cases):
+    """ test that vocabulary counts unique characters correctly """
+    config = DataConfig()
+    processor = NameProcessor(config)
+    processor._build_vocabulary(vocab_test_cases["duplicates"])
+    assert processor.vocab_size == 4  # \n, a, b, c
+    processor._build_vocabulary(vocab_test_cases["basic"])
+    assert processor.vocab_size == 7  # \n, a, b, c, d, e, f
+
+
+def test_vocabulary_mappings(vocab_test_cases):
+    """ test that stoi and itos are consistent inverses """
+    config = DataConfig()
+    processor = NameProcessor(config)
+    processor._build_vocabulary(vocab_test_cases["basic"])
+    # test bidirectional mapping
+    for char, idx in processor.stoi.items():
+        assert processor.itos[idx] == char
+
+
+def test_encode_decode_roundtrip(vocab_test_cases):
+    """ test that encode/decode works correctly """
+    config = DataConfig()
+    processor = NameProcessor(config)
+    processor._build_vocabulary(vocab_test_cases["german"])
+    test_string = "München\n"
+    encoded = processor.encode(test_string)
+    decoded = processor.decode(encoded)
+    assert decoded == test_string
+    assert isinstance(encoded, list)
+    assert all(isinstance(x, int) for x in encoded)

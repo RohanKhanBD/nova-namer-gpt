@@ -48,10 +48,7 @@ class NameProcessor:
 
     def _is_valid_name(self, name: str) -> bool:
         """simple check if name meets criteria; as of now, check only len"""
-        if (
-            len(name) < self.config.min_name_length
-            or len(name) > self.config.max_name_length
-        ):
+        if (len(name) < self.config.min_name_length or len(name) > self.config.max_name_length):
             return False
         else:
             return True
@@ -64,9 +61,7 @@ class NameProcessor:
 
     def _build_vocabulary(self, names: List[str]) -> None:
         """creates mapping dicts from all distinct chars"""
-        all_chars = list(
-            sorted(set([char for name in names for char in name]))
-        )
+        all_chars = list(sorted(set([char for name in names for char in name])))
         # create mappings
         self.itos = {i: s for i, s in enumerate(all_chars)}
         self.stoi = {s: i for i, s in self.itos.items()}
@@ -82,9 +77,7 @@ class NameProcessor:
         """returns joined string for list of indexes with mapping dict"""
         return "".join([self.itos[i] for i in indexes])
 
-    def _create_splits(
-        self, names: List[int]
-    ) -> Tuple[List[int], List[int], List[int]]:
+    def _create_splits(self, names: List[int]) -> Tuple[List[int], List[int], List[int]]:
         """split names into train / dev / test"""
         boundary_1 = int(self.config.train_size * len(names))
         boundary_2 = int(self.config.dev_size * len(names))
@@ -96,9 +89,7 @@ class NameProcessor:
         print(f"Test has {len(test):,} tokens")
         return train, dev, test
 
-    def _export_data(
-            self, splits: Tuple[List[int], List[int], List[int]]
-    ) -> None:
+    def _export_data(self, splits: Tuple[List[int], List[int], List[int]]) -> None:
         """
         - convert splits into np uint16
         - save processed data to bin files at dir defined in config

@@ -11,8 +11,7 @@ Bavarian City Name GPT // data prep & encoding
 - read in dataset of 60k bavarian city names and do some processing
 - default params / options are saved in config.py -> DataConfig
 - expects a input .txt file with continious stream of name strings sep by \n
-- encoding / decoding functions
-- save train / dev / test splits as np bin files
+- saves train / dev / test splits bin files & metadata to output_dir specified in DataConfig
 """
 
 

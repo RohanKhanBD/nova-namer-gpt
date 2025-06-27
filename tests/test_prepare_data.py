@@ -34,18 +34,20 @@ def vocab_test_cases():
     """ essential test cases for vocabulary building """
     return {
         'basic': ["abc\n", "def\n"],  # expected: ['\n', 'a', 'b', 'c', 'd', 'e', 'f'] = 7 chars
-        'duplicates': ["aaa\n", "abc\n"],  # expected: ['\n', 'a', 'b', 'c'] = 4 chars  
+        'duplicates': ["aaa\n", "abc\n"],  # expected: ['\n', 'a', 'b', 'c'] = 4 chars
         'german': ["München\n", "Nürnberg\n"]  # test umlauts + real data
     }
 
 
 def test_NameProcessor_init_invalid_config():
+    """ check for error when init NameProcessor with wrong config object """
     with pytest.raises(TypeError):
         config = TrainConfig()
         processor = NameProcessor(config)
 
 
 def test_NameProcessor_init():
+    """ test itit of nameprocessor objects """
     config = DataConfig()
     p = NameProcessor(config)
     assert isinstance(p.config, DataConfig)
@@ -86,6 +88,7 @@ def test_load_raw_data_invalid(temp_names_file_invalid):
 
 
 def test_is_valid_name():
+    """ test name len boundaries from DataConfig """
     config = DataConfig()
     p = NameProcessor(config)
     assert p._is_valid_name("hah")
@@ -144,7 +147,7 @@ def test_encode_decode_roundtrip(vocab_test_cases):
 
 
 def test_create_splits():
-    """ 
+    """
     - test for splitting up list of ints into 80/10/10 splits 
     - names: List[int]) -> Tuple[List[int], List[int], List[int]
     """
@@ -159,9 +162,12 @@ def test_create_splits():
     assert all(isinstance(idx, int) for item in splits for idx in item)
     assert len(splits[0]) == 8 and len(splits[1]) == 1 and len(splits[2]) == 1
 
- 
+
 def test_export_data(tmp_path, temp_names_file_valid):
-    """ splits: Tuple[List[int], List[int], List[int]]) -> None """
+    """
+    - splits: Tuple[List[int], List[int], List[int]]) -> None
+    - tests execute() method equally E2E
+    """
     config = DataConfig()
     config.input_file = temp_names_file_valid
     config.output_dir = str(tmp_path)
@@ -183,5 +189,4 @@ def test_export_data(tmp_path, temp_names_file_valid):
     assert "vocab_size" in meta
     assert "itos" in meta
     assert "stoi" in meta
-
 

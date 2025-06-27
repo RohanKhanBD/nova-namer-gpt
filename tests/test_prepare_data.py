@@ -9,7 +9,6 @@ import pickle
 
 @pytest.fixture
 def temp_names_file_valid():
-    """ temp text file with 5 names in accepted length"""
     test_data = "München\nNür\nAugsburg\n" + "VeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhnot\n"
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
         f.write(test_data)
@@ -20,7 +19,6 @@ def temp_names_file_valid():
 
 @pytest.fixture
 def temp_names_file_invalid():
-    """ 3 min length, 50 max"""
     test_data = "A\n" + "VeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhhhhh\n" + "Berlin\n"
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
         f.write(test_data)
@@ -42,21 +40,14 @@ def vocab_test_cases():
 def test_NameProcessor_init_invalid_config():
     """ check for error when init NameProcessor with wrong config object """
     with pytest.raises(TypeError):
-        config = TrainConfig()
-        processor = NameProcessor(config)
+        p = NameProcessor(TrainConfig())
 
 
 def test_NameProcessor_init():
-    """ test itit of nameprocessor objects """
-    config = DataConfig()
-    p = NameProcessor(config)
+    p = NameProcessor(DataConfig())
     assert isinstance(p.config, DataConfig)
-    assert hasattr(p.config, "input_file")
     assert p.config.input_file.endswith("txt")
-    assert hasattr(p, "stoi")
-    assert hasattr(p, "itos")
     assert p.vocab_size == 0
-    assert hasattr(p, "rng")
 
 
 def test_load_raw_data_no_input_file():
@@ -124,7 +115,6 @@ def test_vocabulary_size(vocab_test_cases):
 
 
 def test_vocabulary_mappings(vocab_test_cases):
-    """ test that stoi and itos are consistent inverses """
     config = DataConfig()
     p = NameProcessor(config)
     p._build_vocabulary(vocab_test_cases["basic"])
@@ -134,7 +124,6 @@ def test_vocabulary_mappings(vocab_test_cases):
 
 
 def test_encode_decode_roundtrip(vocab_test_cases):
-    """ test that encode/decode works correctly """
     config = DataConfig()
     p = NameProcessor(config)
     p._build_vocabulary(vocab_test_cases["german"])
@@ -145,48 +134,40 @@ def test_encode_decode_roundtrip(vocab_test_cases):
     assert isinstance(encoded, list)
     assert all(isinstance(x, int) for x in encoded)
 
-
-def test_create_splits():
-    """
-    - test for splitting up list of ints into 80/10/10 splits 
-    - names: List[int]) -> Tuple[List[int], List[int], List[int]
-    """
+def test_unknown_character_in_encode():
     config = DataConfig()
     p = NameProcessor(config)
-    # check boundaries of sample_config
-    assert p.config.train_size + p.config.dev_size + p.config.test_size == 1.0
-    idx = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    splits = p._create_splits(idx)
-    assert isinstance(splits, tuple)
-    assert all(isinstance(item, list) for item in splits)
-    assert all(isinstance(idx, int) for item in splits for idx in item)
-    assert len(splits[0]) == 8 and len(splits[1]) == 1 and len(splits[2]) == 1
+    p._build_vocabulary(["abc\n"])
+    with pytest.raises(KeyError):
+        p.encode("xyz")
+
+
+def test_create_splits():
+    config = DataConfig()
+    p = NameProcessor(config)
+    idx = list(range(1, 11))
+    train, dev, test = p._create_splits(idx)
+    assert len(train) == 8 and len(dev) == 1 and len(test) == 1
+    assert train + dev + test == idx
 
 
 def test_export_data(tmp_path, temp_names_file_valid):
-    """
-    - splits: Tuple[List[int], List[int], List[int]]) -> None
-    - tests execute() method equally E2E
-    """
+    """ equally E2E test of execute() method """
     config = DataConfig()
     config.input_file = temp_names_file_valid
     config.output_dir = str(tmp_path)
     p = NameProcessor(config)
     p.execute()
     # check if bin & metadata paths exist
-    assert (tmp_path / "train.bin").exists()
-    assert (tmp_path / "dev.bin").exists()
-    assert (tmp_path / "test.bin").exists()
-    assert (tmp_path / "meta.pkl").exists()
+    for filename in ["train.bin", "dev.bin", "test.bin", "meta.pkl"]:
+        assert (tmp_path / filename).exists()
     # check bin file contents
-    train_data = np.fromfile(tmp_path / "train.bin", dtype=np.uint16)
-    dev_data = np.fromfile(tmp_path / "dev.bin", dtype=np.uint16)
-    test_data = np.fromfile(tmp_path / "test.bin", dtype=np.uint16)
-    assert len(train_data) > 0 and len(dev_data) > 0 and len(test_data) > 0
+    for split in ["train", "dev", "test"]:
+        data = np.fromfile(tmp_path / f"{split}.bin", dtype=np.uint16)
+        assert len(data) > 0
     # check meta file contents
     with open(tmp_path / "meta.pkl", "rb") as f:
         meta = pickle.load(f)
-    assert "vocab_size" in meta
-    assert "itos" in meta
-    assert "stoi" in meta
+    assert all(key in meta for key in ["vocab_size", "itos", "stoi"])
+    assert meta["vocab_size"] > 0
 

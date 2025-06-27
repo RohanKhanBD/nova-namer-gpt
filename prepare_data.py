@@ -45,10 +45,7 @@ class NameProcessor:
 
     def _is_valid_name(self, name: str) -> bool:
         """simple check if name meets criteria; as of now, check only len"""
-        if (len(name) < self.config.min_name_length or len(name) > self.config.max_name_length):
-            return False
-        else:
-            return True
+        return self.config.min_name_length <= len(name) <= self.config.max_name_length
    
     def _shuffle_names(self, names: List[str]) -> List[str]:
         """ shuffle names using seeded RNG, returns a new shuffled list """
@@ -58,7 +55,7 @@ class NameProcessor:
 
     def _build_vocabulary(self, names: List[str]) -> None:
         """creates mapping dicts from all distinct chars"""
-        all_chars = list(sorted(set([char for name in names for char in name])))
+        all_chars = sorted(set(''.join(names)))
         self.itos = {i: s for i, s in enumerate(all_chars)}
         self.stoi = {s: i for i, s in self.itos.items()}
         self.vocab_size = len(all_chars)
@@ -87,24 +84,12 @@ class NameProcessor:
         return train, dev, test
 
     def _export_data(self, splits: Tuple[List[int], List[int], List[int]]) -> None:
-        """
-        - convert idx splits into np uint16
-        - save bin files & metadata at output_dir defined in config
-        """
-        train, dev, test = splits
-        # convert into np
-        train = np.array(train, dtype=np.uint16)
-        dev = np.array(dev, dtype=np.uint16)
-        test = np.array(test, dtype=np.uint16)
-        # create dirs & pathes
-        os.makedirs(self.config.output_dir, exist_ok=True)
-        train_path = os.path.join(self.config.output_dir, "train.bin")
-        dev_path = os.path.join(self.config.output_dir, "dev.bin")
-        test_path = os.path.join(self.config.output_dir, "test.bin")
-        # export / save as bin files
-        train.astype(np.uint16).tofile(train_path)
-        dev.astype(np.uint16).tofile(dev_path)
-        test.astype(np.uint16).tofile(test_path)
+        """ convert idx splits in uint16 save bin files & metadata at output_dir of DataConfig """
+        split_names = ["train", "dev", "test"]
+        for name, data in zip(split_names, splits):
+            np.array(data, dtype=np.uint16).tofile(
+                os.path.join(self.config.output_dir, f"{name}.bin")
+            )
         meta = {
             "vocab_size": self.vocab_size,
             "itos": self.itos,
@@ -115,11 +100,10 @@ class NameProcessor:
 
     def execute(self) -> None:
         """
-        - load raw names from file
+        - load raw names from file & shuffle them
         - build mapping dicts from names
         - encode the data into indexes from joined string
-        - create splits
-        - export splits to np bin files & save some metadata
+        - create splits & export to np bin files & save some metadata
         """
         names = self._load_raw_data()
         names = self._shuffle_names(names)
@@ -139,8 +123,7 @@ def main():
         2. creating instance of NameProcessor with config
         3. call NameProcessor execute method
     """
-    config = DataConfig()
-    processor = NameProcessor(config)
+    processor = NameProcessor(DataConfig())
     processor.execute()
 
 

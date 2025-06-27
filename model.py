@@ -30,8 +30,7 @@ class GPTconfig:
 
 class Head(nn.Module):
     """
-    - single self-attention head
-    - called from multi-head-attention class
+    - single self-attention head; called from multi-head-attention class
     - pre-registered full-size buffer for triangular masking
     """
 
@@ -41,9 +40,7 @@ class Head(nn.Module):
         self.key = nn.Linear(config.n_embd, h_size, bias=config.a_bias)
         self.value = nn.Linear(config.n_embd, h_size, bias=config.a_bias)
         # helper matrix for triangular masking; all zero values above diagonal
-        self.register_buffer(
-            "tril", torch.tril(torch.ones(config.context_len, config.context_len))
-        )
+        self.register_buffer("tril", torch.tril(torch.ones(config.context_len, config.context_len)))
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x) -> torch.Tensor:
@@ -61,19 +58,13 @@ class Head(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    """
-    - steering multiple heads of self-attention in parallel
-    - returning cat heads output after
-    - n_embd / n_head must have no remainder
-    """
+    """steering multiple heads of self-attention in parallel; returning cat heads output after"""
 
     def __init__(self, config: GPTconfig):
         super().__init__()
         assert config.n_embd % config.n_head == 0
         self.head_size: int = config.n_embd // config.n_head
-        self.heads = nn.ModuleList(
-            Head(config, self.head_size) for _ in range(config.n_head)
-        )
+        self.heads = nn.ModuleList(Head(config, self.head_size) for _ in range(config.n_head))
         # linear projection layer to blend all cat head outputs
         self.proj = nn.Linear(config.n_embd, config.n_embd, bias=config.a_bias)
         self.dropout = nn.Dropout(config.dropout)
@@ -94,13 +85,9 @@ class Ffw(nn.Module):
 
     def __init__(self, config: GPTconfig):
         super().__init__()
-        self.c_fc = nn.Linear(
-            config.n_embd, config.n_embd * config.ffw_widen, bias=config.ffw_bias
-        )
+        self.c_fc = nn.Linear(config.n_embd, config.n_embd * config.ffw_widen, bias=config.ffw_bias)
         self.relu = nn.ReLU()
-        self.proj = nn.Linear(
-            config.n_embd * config.ffw_widen, config.n_embd, bias=config.ffw_bias
-        )
+        self.proj = nn.Linear(config.n_embd * config.ffw_widen, config.n_embd, bias=config.ffw_bias)
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x) -> torch.Tensor:
@@ -143,16 +130,12 @@ class GPT(nn.Module):
                 wte=nn.Embedding(config.vocab_size, config.n_embd),
                 wpe=nn.Embedding(config.context_len, config.n_embd),
                 drop=nn.Dropout(config.dropout),
-                h=nn.ModuleList(
-                    [TransformerBlock(config) for _ in range(config.n_layer)]
-                ),
+                h=nn.ModuleList([TransformerBlock(config) for _ in range(config.n_layer)]),
                 ln_f=nn.LayerNorm(config.n_embd),
             )
         )
         # output layer
-        self.lm_head = nn.Linear(
-            config.n_embd, config.vocab_size, bias=config.lm_head_bias
-        )
+        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=config.lm_head_bias)
         # weight tying between token embedding and output projection
         self.transformer.wte.weight = self.lm_head.weight
         # trigger weight init
@@ -192,10 +175,7 @@ class GPT(nn.Module):
         return logits, loss
 
     def _init_weights(self, module) -> None:
-        """
-        - standard initfor lin / embd layers
-        - scaled residual init for projection layers
-        """
+        """standard initfor lin / embd layers; scaled residual init for projection layers"""
         if isinstance(module, nn.Linear):
             # init weights with small normal distribution (GPT-2 standard)
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)

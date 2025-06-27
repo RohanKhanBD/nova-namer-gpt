@@ -134,6 +134,7 @@ def test_encode_decode_roundtrip(vocab_test_cases):
     assert isinstance(encoded, list)
     assert all(isinstance(x, int) for x in encoded)
 
+
 def test_unknown_character_in_encode():
     config = DataConfig()
     p = NameProcessor(config)

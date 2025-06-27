@@ -62,4 +62,5 @@ class DataConfig:
     max_name_length: int = 50
     # split sizes for train / dev; rest it test
     train_size: float = 0.8
-    dev_size: float = 0.9
+    dev_size: float = 0.1
+    test_size: float = 0.1

@@ -74,11 +74,11 @@ class NameGPTTrainer:
             (self.train_config.batch_size,),
         )
         x = torch.stack(
-            [split[t : t + self.model_config.context_len] for t in batch_borders]
+            [split[t: t + self.model_config.context_len] for t in batch_borders]
         )
         y = torch.stack(
             [
-                split[t + 1 : t + self.model_config.context_len + 1]
+                split[t + 1: t + self.model_config.context_len + 1]
                 for t in batch_borders
             ]
         )

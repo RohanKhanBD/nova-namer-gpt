@@ -9,8 +9,9 @@ import pickle
 """
 Bavarian City Name GPT // data prep & encoding
 - read in dataset of 60k bavarian city names and do some processing
-- default params / options are saved in config.py -> DataConfig 
-- create encoding / decoding functions
+- default params / options are saved in config.py -> DataConfig
+- expects a input .txt file with continious stream of name strings sep by \n
+- encoding / decoding functions
 - save train / dev / test splits as np bin files
 """
 
@@ -32,16 +33,13 @@ class NameProcessor:
         - checks names for len boundaries & shuffles them with seed from config
         """
         print(f"Loading data from {self.config.input_file}")
-        # throw error if file not found
         if not os.path.exists(self.config.input_file):
             raise FileNotFoundError(f"Data file not found: {self.config.input_file}")
-        # load all names into memory
         with open(self.config.input_file, mode="r", encoding="utf-8") as file:
             # excplicitly don't strip -> newline chars are kept for model
             names = file.readlines()
         # check names for certain criteria
         names = [name for name in names if self._is_valid_name(name)]
-        # print and return valid names
         print(f"Loaded {len(names)} valid names")
         print(f"Sample of first 5 names: {names[:5]}")
         return names
@@ -52,7 +50,7 @@ class NameProcessor:
             return False
         else:
             return True
-    
+   
     def _shuffle_names(self, names: List[str]) -> List[str]:
         """ shuffle names using seeded RNG, returns a new shuffled list """
         shuffled_names = names.copy()
@@ -62,7 +60,6 @@ class NameProcessor:
     def _build_vocabulary(self, names: List[str]) -> None:
         """creates mapping dicts from all distinct chars"""
         all_chars = list(sorted(set([char for name in names for char in name])))
-        # create mappings
         self.itos = {i: s for i, s in enumerate(all_chars)}
         self.stoi = {s: i for i, s in self.itos.items()}
         self.vocab_size = len(all_chars)
@@ -80,10 +77,11 @@ class NameProcessor:
     def _create_splits(self, names: List[int]) -> Tuple[List[int], List[int], List[int]]:
         """split names into train / dev / test"""
         boundary_1 = int(self.config.train_size * len(names))
-        boundary_2 = int(self.config.dev_size * len(names))
+        boundary_2 = int((self.config.train_size + self.config.dev_size) * len(names))
+        boundary_3 = int((1 - self.config.test_size) * len(names))
         train = names[:boundary_1]
         dev = names[boundary_1:boundary_2]
-        test = names[boundary_2:]
+        test = names[boundary_3:]
         print(f"Train has {len(train):,} tokens")
         print(f"Dev has {len(dev):,} tokens")
         print(f"Test has {len(test):,} tokens")
@@ -91,26 +89,23 @@ class NameProcessor:
 
     def _export_data(self, splits: Tuple[List[int], List[int], List[int]]) -> None:
         """
-        - convert splits into np uint16
-        - save processed data to bin files at dir defined in config
-        - save related metadata
+        - convert idx splits into np uint16
+        - save bin files & metadata at output_dir defined in config
         """
         train, dev, test = splits
-        # convert into np uint16
+        # convert into np
         train = np.array(train, dtype=np.uint16)
         dev = np.array(dev, dtype=np.uint16)
         test = np.array(test, dtype=np.uint16)
-        # save binary data
+        # create dirs & pathes
         os.makedirs(self.config.output_dir, exist_ok=True)
         train_path = os.path.join(self.config.output_dir, "train.bin")
-        # create pathes
         dev_path = os.path.join(self.config.output_dir, "dev.bin")
         test_path = os.path.join(self.config.output_dir, "test.bin")
         # export
         train.astype(np.uint16).tofile(train_path)
         dev.astype(np.uint16).tofile(dev_path)
         test.astype(np.uint16).tofile(test_path)
-        # export metadata
         meta = {
             "vocab_size": self.vocab_size,
             "itos": self.itos,

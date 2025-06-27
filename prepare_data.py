@@ -102,7 +102,7 @@ class NameProcessor:
         train_path = os.path.join(self.config.output_dir, "train.bin")
         dev_path = os.path.join(self.config.output_dir, "dev.bin")
         test_path = os.path.join(self.config.output_dir, "test.bin")
-        # export
+        # export / save as bin files
         train.astype(np.uint16).tofile(train_path)
         dev.astype(np.uint16).tofile(dev_path)
         test.astype(np.uint16).tofile(test_path)

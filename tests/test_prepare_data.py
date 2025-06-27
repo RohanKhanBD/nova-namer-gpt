@@ -3,6 +3,8 @@ from prepare_data import NameProcessor
 import pytest
 import tempfile
 import os
+import numpy as np
+import pickle
 
 
 @pytest.fixture
@@ -142,7 +144,10 @@ def test_encode_decode_roundtrip(vocab_test_cases):
 
 
 def test_create_splits():
-    """ test for splitting up list of ints into 80/10/10 splits """
+    """ 
+    - test for splitting up list of ints into 80/10/10 splits 
+    - names: List[int]) -> Tuple[List[int], List[int], List[int]
+    """
     config = DataConfig()
     p = NameProcessor(config)
     # check boundaries of sample_config
@@ -155,4 +160,28 @@ def test_create_splits():
     assert len(splits[0]) == 8 and len(splits[1]) == 1 and len(splits[2]) == 1
 
  
+def test_export_data(tmp_path, temp_names_file_valid):
+    """ splits: Tuple[List[int], List[int], List[int]]) -> None """
+    config = DataConfig()
+    config.input_file = temp_names_file_valid
+    config.output_dir = str(tmp_path)
+    p = NameProcessor(config)
+    p.execute()
+    # check if bin & metadata paths exist
+    assert (tmp_path / "train.bin").exists()
+    assert (tmp_path / "dev.bin").exists()
+    assert (tmp_path / "test.bin").exists()
+    assert (tmp_path / "meta.pkl").exists()
+    # check bin file contents
+    train_data = np.fromfile(tmp_path / "train.bin", dtype=np.uint16)
+    dev_data = np.fromfile(tmp_path / "dev.bin", dtype=np.uint16)
+    test_data = np.fromfile(tmp_path / "test.bin", dtype=np.uint16)
+    assert len(train_data) > 0 and len(dev_data) > 0 and len(test_data) > 0
+    # check meta file contents
+    with open(tmp_path / "meta.pkl", "rb") as f:
+        meta = pickle.load(f)
+    assert "vocab_size" in meta
+    assert "itos" in meta
+    assert "stoi" in meta
+
 

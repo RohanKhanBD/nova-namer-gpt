@@ -63,7 +63,7 @@ class NameGPTTrainer:
 
     def _print_model_stats(self) -> None:
         """print total model params after model init"""
-        total_params = sum(p.nelement() for p in self.model.parameters())
+        total_params = self.model.get_num_params()
         print(f"Model parameters: {total_params:,}")
 
     def _get_batch(self, split: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -221,7 +221,7 @@ class ModelManager:
                 "final_train_loss": round(float(final_train_loss), 3),
                 "final_dev_loss": round(float(final_dev_loss), 3),
                 "training_time": f"{round(training_time / 60, 2)} min",
-                "total_parameters": f"{sum(p.nelement() for p in model.parameters()):,}",
+                "total_parameters": f"{(model.get_num_params()):,}",
                 "device_used": str(self.device),
                 "timestamp": datetime.now().isoformat(),
                 "pytorch_version": torch.__version__,

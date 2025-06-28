@@ -23,12 +23,12 @@ def min_config():
 
 
 @pytest.fixture
-def min_x_tensor():
+def min_idx_tensor():
     return torch.stack((torch.arange(0, 4), torch.arange(4, 8)))
 
 
 @pytest.fixture
-def min_y_tensor():
+def min_targets_tensor():
     return torch.stack((torch.arange(1, 5), torch.arange(5, 9)))
 
 
@@ -53,7 +53,13 @@ def test_GPT_init(min_config):
     assert m.config.n_embd % m.config.n_head == 0
 
 
-def test_GPT_forward_wrong_T(min_config):
+def test_GPT_init_num_params():
+    config = GPTconfig()
+    m = GPT(config, init_weights=False)
+    assert m.get_num_params() == 6334208
+
+
+def test_GPT_forward_T_greater_context_len(min_config):
     """ T dim of input idx may not be greater than context_len"""
     with pytest.raises(ValueError):
         m = GPT(min_config)
@@ -61,9 +67,29 @@ def test_GPT_forward_wrong_T(min_config):
         logits, loss = m(idx)
 
 
-def test_GPT_forward_infer_basic(min_config, min_x_tensor):
+def test_GPT_forward_train_base(min_config, min_idx_tensor, min_targets_tensor):
+    """ when training with targets, logits shape gets flattened to (B*T, V) for loss calculation """
     m = GPT(min_config)
-    logits, loss = m(min_x_tensor)
-    assert logits is not None
+    B_idx, T_idx = min_idx_tensor.shape
+    logits, loss = m(min_idx_tensor, min_targets_tensor)
+    T_l, V_l = logits.shape
+    # T flattened out in train case
+    assert T_l == (B_idx * T_idx)
+    assert V_l == m.config.vocab_size
+    assert isinstance(loss, torch.Tensor)
+    assert isinstance(loss.item(), float)
+    assert loss.item() > 0
+
+
+def test_GPT_forward_infer_base(min_config, min_idx_tensor):
+    """ when infering with idx input shape (B,T) logits shape must be (B,T,V) V:vocab_size"""
+    m = GPT(min_config)
+    B_idx, T_idx = min_idx_tensor.shape
+    logits, loss = m(min_idx_tensor)
+    B_l, T_l, V_l = logits.shape
+    assert B_idx == B_l == 2
+    assert T_idx == T_l == m.config.context_len == 4
+    assert V_l == m.config.vocab_size
     assert loss is None
+
 

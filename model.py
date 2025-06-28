@@ -62,7 +62,8 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(self, config: GPTconfig):
         super().__init__()
-        assert config.n_embd % config.n_head == 0
+        if not config.n_embd % config.n_head == 0:
+            raise ValueError("Ratio n_embd / n_head must have no remainder.")
         self.head_size: int = config.n_embd // config.n_head
         self.heads = nn.ModuleList(Head(config, self.head_size) for _ in range(config.n_head))
         # linear projection layer to blend all cat head outputs
@@ -151,7 +152,8 @@ class GPT(nn.Module):
         # derive device from idx arg
         device = idx.device
         B, T = idx.shape
-        assert T <= self.config.context_len
+        if not T <= self.config.context_len:
+            raise ValueError("T size of input idx must not be greater than context_len.")
         # creates 1D-tensor with values from 0 - context_len; T
         pos_idx = torch.arange(0, T, dtype=torch.long, device=device)
 

@@ -68,20 +68,12 @@ class NameGPTTrainer:
 
     def _get_batch(self, split: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """delivers a batch of X, Y tensors for specified split"""
-        batch_borders = torch.randint(
-            0,
+        batch_borders = torch.randint(0,
             len(split) - self.model_config.context_len,
             (self.train_config.batch_size,),
         )
-        x = torch.stack(
-            [split[t: t + self.model_config.context_len] for t in batch_borders]
-        )
-        y = torch.stack(
-            [
-                split[t + 1: t + self.model_config.context_len + 1]
-                for t in batch_borders
-            ]
-        )
+        x = torch.stack([split[t: t + self.model_config.context_len] for t in batch_borders])
+        y = torch.stack([split[t + 1: t + self.model_config.context_len + 1]for t in batch_borders])
         return x, y
 
     def train_model(self):

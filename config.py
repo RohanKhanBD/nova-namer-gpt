@@ -14,7 +14,7 @@ class TrainConfig:
 
     batch_size: int = 64
     learning_rate: float = 3e-4
-    train_iter: int = 6500
+    train_iter: int = 1
     eval_iter: int = 150
     eval_interval: int = 500
     device: str = "mps"

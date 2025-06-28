@@ -119,10 +119,12 @@ class TransformerBlock(nn.Module):
 
 # Core GPT logic setting up NN
 class GPT(nn.Module):
-    """central class setting up the NN"""
+    """central class setting up the NN; flag to deactivate _init_weights for testcases"""
 
-    def __init__(self, config: GPTconfig):
+    def __init__(self, config: GPTconfig, init_weights: bool = True):
         super().__init__()
+        if not isinstance(config, GPTconfig):
+            raise TypeError("Invalid config type!")
         self.config = config
         # embeddings & transformer blocks
         self.transformer = nn.ModuleDict(
@@ -139,7 +141,8 @@ class GPT(nn.Module):
         # weight tying between token embedding and output projection
         self.transformer.wte.weight = self.lm_head.weight
         # trigger weight init
-        self.apply(self._init_weights)
+        if init_weights:
+            self.apply(self._init_weights)
 
     def forward(
         self, idx: torch.Tensor, targets: Optional[torch.Tensor] = None

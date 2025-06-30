@@ -28,53 +28,35 @@ class GPTconfig:
     lm_head_bias: bool = False
 
 
-class Head(nn.Module):
-    """
-    - single self-attention head; called from multi-head-attention class
-    - pre-registered full-size buffer for triangular masking
-    """
-
-    def __init__(self, config: GPTconfig, h_size: int):
-        super().__init__()
-        self.query = nn.Linear(config.n_embd, h_size, bias=config.a_bias)
-        self.key = nn.Linear(config.n_embd, h_size, bias=config.a_bias)
-        self.value = nn.Linear(config.n_embd, h_size, bias=config.a_bias)
-        # helper matrix for triangular masking; all zero values above diagonal
-        self.register_buffer("tril", torch.tril(torch.ones(config.context_len, config.context_len)))
-        self.dropout = nn.Dropout(config.dropout)
-
-    def forward(self, x) -> torch.Tensor:
-        B, T, C = x.shape
-        q = self.query(x)  # B,T,H
-        k = self.key(x)  # B,T,H
-        wei = q @ torch.transpose(k, dim0=-1, dim1=-2) * C**-0.5  # B,T,T
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float("-inf"))  # B,T,T
-        wei = F.softmax(wei, dim=-1)  # B,T,T
-        # dropout after softmax
-        wei = self.dropout(wei)  # B,T,T
-        v = self.value(x)  # B,T,H
-        out = wei @ v  # B,T,H
-        return out
-
-
 class MultiHeadAttention(nn.Module):
-    """steering multiple heads of self-attention in parallel; returning cat heads output after"""
 
     def __init__(self, config: GPTconfig):
         super().__init__()
         if not config.n_embd % config.n_head == 0:
             raise ValueError("Ratio n_embd / n_head must have no remainder.")
+        self.n_head = config.n_head
         self.head_size: int = config.n_embd // config.n_head
-        self.heads = nn.ModuleList(Head(config, self.head_size) for _ in range(config.n_head))
+        # single layer for all heads; 3 is constant
+        self.qkv = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.a_bias)
         # linear projection layer to blend all cat head outputs
         self.proj = nn.Linear(config.n_embd, config.n_embd, bias=config.a_bias)
         self.dropout = nn.Dropout(config.dropout)
+        # helper matrix for triangular masking; all zero values above diagonal
+        self.register_buffer("tril", torch.tril(torch.ones(config.context_len, config.context_len)))
 
     def forward(self, x) -> torch.Tensor:
-        # cat each head out along last dim
-        out = torch.cat([head(x) for head in self.heads], dim=-1)
-        out = self.dropout(self.proj(out))
-        return out
+        B, T, C = x.shape
+        # permute qkv-dim to front to catch qkv in next step 
+        qkv = self.qkv(x).reshape(B, T, 3, self.n_head, self.head_size).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]  # B, nh, T, hs
+        att = (q @ torch.transpose(k, dim0=-1, dim1=-2)) * self.head_size**-0.5  # B,nh,T, T
+        # = attention weights
+        att = F.softmax(att.masked_fill(self.tril[:T, :T] == 0, float("-inf")), dim=-1)
+        # att @ v (=attended values): B,nh,T,hs
+        # transpose: swap n_head with T -> B,T,nh,hs
+        # reshape: B & already fine; n_head * h_size = n_embd -> cats / stacks along C
+        out = (self.dropout(att) @ v).transpose(1, 2).reshape(B, T, C)
+        return self.dropout(self.proj(out))
 
 
 class Ffw(nn.Module):

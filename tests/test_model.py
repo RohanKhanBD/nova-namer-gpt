@@ -1,4 +1,4 @@
-from model import GPTconfig, GPT, TransformerBlock, Ffw, MultiHeadAttention, Head
+from model import GPTconfig, GPT, TransformerBlock, Ffw, MultiHeadAttention
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -68,28 +68,35 @@ def test_GPT_forward_T_greater_context_len(min_config):
 
 
 def test_GPT_forward_train_base(min_config, min_idx_tensor, min_targets_tensor):
-    """ when training with targets, logits shape gets flattened to (B*T, V) for loss calculation """
+    """ when training with targets, logits shape gets flattened to (B*T, C) for loss calculation """
     m = GPT(min_config)
     B_idx, T_idx = min_idx_tensor.shape
     logits, loss = m(min_idx_tensor, min_targets_tensor)
-    T_l, V_l = logits.shape
+    T_l, C_l = logits.shape
     # T flattened out in train case
     assert T_l == (B_idx * T_idx)
-    assert V_l == m.config.vocab_size
+    assert C_l == m.config.vocab_size
     assert isinstance(loss, torch.Tensor)
     assert isinstance(loss.item(), float)
     assert loss.item() > 0
 
 
 def test_GPT_forward_infer_base(min_config, min_idx_tensor):
-    """ when infering with idx input shape (B,T) logits shape must be (B,T,V) V:vocab_size"""
+    """ when infering with idx input shape (B,T) logits shape must be (B,T,C) C:vocab_size"""
     m = GPT(min_config)
     B_idx, T_idx = min_idx_tensor.shape
     logits, loss = m(min_idx_tensor)
-    B_l, T_l, V_l = logits.shape
+    B_l, T_l, C_l = logits.shape
     assert B_idx == B_l == 2
     assert T_idx == T_l == m.config.context_len == 4
-    assert V_l == m.config.vocab_size
+    assert C_l == m.config.vocab_size
     assert loss is None
 
+
+def test_MultiHeadAttention(min_config):
+    batch_size = 2
+    mha = MultiHeadAttention(min_config)
+    x = torch.randn(batch_size, min_config.context_len, min_config.n_embd)
+    out = mha(x)
+    assert out.shape == x.shape
 

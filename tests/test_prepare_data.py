@@ -39,7 +39,7 @@ def vocab_test_cases():
 
 def test_NameProcessor_init_invalid_config():
     """ check for error when init NameProcessor with wrong config object """
-    with pytest.raises(TypeError):
+    with pytest.raises(AssertionError):
         p = NameProcessor(TrainConfig())
 
 
@@ -51,7 +51,7 @@ def test_NameProcessor_init():
 
 
 def test_load_raw_data_no_input_file():
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(AssertionError):
         config = DataConfig()
         config.input_file = "this_file_does_not_exist.txt"
         p = NameProcessor(config)

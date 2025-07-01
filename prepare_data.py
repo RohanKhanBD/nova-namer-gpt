@@ -18,8 +18,7 @@ Bavarian City Name GPT // data prep & encoding
 class NameProcessor:
 
     def __init__(self, config: DataConfig):
-        if not isinstance(config, DataConfig):
-            raise TypeError("Invalid config type!")
+        assert isinstance(config, DataConfig), "Invalid config type."
         self.config = config
         self.stoi: Dict[str, int] = {}
         self.itos: Dict[int, str] = {}
@@ -32,8 +31,7 @@ class NameProcessor:
         - checks names for len boundaries & shuffles them with seed from config
         """
         print(f"Loading data from {self.config.input_file}")
-        if not os.path.exists(self.config.input_file):
-            raise FileNotFoundError(f"Data file not found: {self.config.input_file}")
+        assert os.path.exists(self.config.input_file), f"File not found: {self.config.input_file}"
         with open(self.config.input_file, mode="r", encoding="utf-8") as file:
             # excplicitly don't strip -> newline chars are kept for model
             names = file.readlines()

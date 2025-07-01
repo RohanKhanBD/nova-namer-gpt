@@ -29,11 +29,11 @@ class GPTconfig:
 
 
 class MultiHeadAttention(nn.Module):
+    """  """
 
     def __init__(self, config: GPTconfig):
         super().__init__()
-        if not config.n_embd % config.n_head == 0:
-            raise ValueError("Ratio n_embd / n_head must have no remainder.")
+        assert config.n_embd % config.n_head == 0, "Ratio n_embd / n_head must have no remainder."
         self.n_head = config.n_head
         self.head_size: int = config.n_embd // config.n_head
         # single layer for all heads; 3 is constant
@@ -46,15 +46,13 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, x) -> torch.Tensor:
         B, T, C = x.shape
-        # permute qkv-dim to front to catch qkv in next step 
+        # permute qkv-dim to front to catch qkv in next step
         qkv = self.qkv(x).reshape(B, T, 3, self.n_head, self.head_size).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # B, nh, T, hs
         att = (q @ torch.transpose(k, dim0=-1, dim1=-2)) * self.head_size**-0.5  # B,nh,T, T
         # = attention weights
         att = F.softmax(att.masked_fill(self.tril[:T, :T] == 0, float("-inf")), dim=-1)
         # att @ v (=attended values): B,nh,T,hs
-        # transpose: swap n_head with T -> B,T,nh,hs
-        # reshape: B & already fine; n_head * h_size = n_embd -> cats / stacks along C
         out = (self.dropout(att) @ v).transpose(1, 2).reshape(B, T, C)
         return self.dropout(self.proj(out))
 
@@ -106,8 +104,10 @@ class GPT(nn.Module):
 
     def __init__(self, config: GPTconfig, init_weights: bool = True):
         super().__init__()
-        if not isinstance(config, GPTconfig):
-            raise TypeError("Invalid config type!")
+        assert isinstance(config, GPTconfig), "Invalid config type."
+        assert config.n_head > 0, "n_head must be positive."
+        assert config.n_layer > 0, "n_layer must be positive."
+        assert config.vocab_size > 0, "vocab_size must be positive."
         self.config = config
         # embeddings & transformer blocks
         self.transformer = nn.ModuleDict(
@@ -130,47 +130,33 @@ class GPT(nn.Module):
     def forward(
         self, idx: torch.Tensor, targets: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, Optional[torch.tensor]]:
-
-        # derive device from idx arg
-        device = idx.device
         B, T = idx.shape
-        if not T <= self.config.context_len:
-            raise ValueError("T size of input idx must not be greater than context_len.")
-        # creates 1D-tensor with values from 0 - context_len; T
-        pos_idx = torch.arange(0, T, dtype=torch.long, device=device)
-
-        # setup embeddings
-        tok_emb = self.transformer.wte(idx)  # B,T,C
-        pos_emb = self.transformer.wpe(pos_idx)  # position embeddings; T,C
-        # dropout on combined embeddings
-        x = self.transformer.drop(tok_emb + pos_emb)
+        assert T <= self.config.context_len, f"T: {T} exceeds context_len {self.config.context_len}"
+        x = self.transformer.drop(
+            self.transformer.wte(idx) +
+            self.transformer.wpe(torch.arange(T, dtype=torch.long, device=idx.device))
+        )
         # forward through hidden layers & layernorm
         for block in self.transformer.h:
             x = block(x)
         x = self.transformer.ln_f(x)
-        logits = self.lm_head(x)
         # calc loss if targets are available; otherwise loss is None
-        if targets is None:
-            loss = None
+        if targets is not None:
+            logits = self.lm_head(x)
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
         else:
-            B, T, C = logits.shape
-            # flatten logits into B*T, C
-            logits = logits.view(B * T, C)
-            # flatten targets into B*T
-            targets = targets.view(B * T)
-            loss = F.cross_entropy(logits, targets)
+            # inference: only forward the lm_head on the very last position
+            logits = self.lm_head(x[:, [-1], :])  # list [-1] to preserve the time dim
+            loss = None
         return logits, loss
 
     def _init_weights(self, module) -> None:
         """standard initfor lin / embd layers; scaled residual init for projection layers"""
-        if isinstance(module, nn.Linear):
+        if isinstance(module, (nn.Linear, nn.Embedding)):
             # init weights with small normal distribution (GPT-2 standard)
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-            if module.bias is not None:
+            if hasattr(module, "bias") and module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
-        elif isinstance(module, nn.Embedding):
-            # init embd with same std as linear layers
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
         # scaled init to residual projections
         for name, param in self.named_parameters():
             # catches both attention and ffw projections

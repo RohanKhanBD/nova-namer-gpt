@@ -16,12 +16,11 @@ from typing import Tuple, Dict, List
 class NameGPTTrainer:
 
     def __init__(self, train_config: TrainConfig, model_config: GPTconfig):
+        assert isinstance(train_config, TrainConfig), "Invalid train config type."
+        assert isinstance(model_config, GPTconfig), "Invalid model config type."
         self.train_config = train_config
         self.model_config = model_config
-        # set device mps; if not available cpu
-        self.device = (
-            train_config.device if torch.backends.mps.is_available() else "cpu"
-        )
+        self.device = self._get_device()
         # load data
         self.train_split, self.dev_split = self._load_data()
         # init components
@@ -35,6 +34,15 @@ class NameGPTTrainer:
             self.model, self.device, self.train_config.eval_iter
         )
         self._print_model_stats()
+    
+    def _get_device(self) -> str:
+        """ get best available device based on train config and hardware """
+        if self.train_config.device == "cuda" and torch.cuda.is_available():
+            return "cuda"
+        elif self.train_config.device == "mps" and torch.backends.mps.is_available():
+            return "mps"
+        else:
+            return "cpu"
 
     def _load_data(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """load train and val data"""

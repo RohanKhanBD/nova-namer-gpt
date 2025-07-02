@@ -8,6 +8,7 @@ import pickle
 import pytest
 from typing import Dict
 import math
+import os
 
 
 @pytest.fixture
@@ -63,7 +64,7 @@ def min_train_config():
         train_iter=2,
         eval_iter=5,
         eval_interval=500,
-        device="mps",
+        device="cpu",
         data_dir="data",
         save_model=False,
         model_save_dir="saved_test_models",
@@ -159,15 +160,40 @@ def test_estimate_loss(min_train_config, min_model_config, temp_data_files):
 
 def test_train_base(min_train_config, min_model_config, temp_data_files):
     t_config = min_train_config
-    t_config.data_dir = temp_data_files
+    t_config.data_dir = str(temp_data_files)
     t = NameGPTTrainer(t_config, min_model_config)
     t.train_model()
     assert len(t.training_results) > 0
     assert "train_loss" in t.training_results[0]
 
 
-# def test_save_checkpoint_switch(min_train_config, min_model_config, temp_data_files, temp_path):
-#     t_config = min_train_config
-#     t_config.data_dir = temp_data_files
-#     pass
+def test_save_checkpoint_model(min_train_config, min_model_config, temp_data_files, tmp_path):
+    t_config = min_train_config
+    t_config.data_dir = str(temp_data_files)
+    t_config.save_model = True
+    t_config.model_save_dir = str(tmp_path)
+    t = NameGPTTrainer(min_train_config, min_model_config)
+    # check if model_save_path was updated from None to str after train_model()
+    assert t.model_save_path is None
+    t.train_model()
+    assert isinstance(t.model_save_path, str)
+    # setup fresh model, load state_dict into it and compare with original state
+    m = GPT(min_model_config)
+    checkpoint = torch.load(os.path.join(t.model_save_path, "model.pt"), map_location="cpu")
+    m.load_state_dict(checkpoint)
+    # Compare state dicts directly
+    original_state = {k: v.cpu() for k, v in t.model.state_dict().items()}
+    loaded_state = {k: v.cpu() for k, v in m.state_dict().items()}
+    for key in original_state:
+        assert torch.equal(original_state[key], loaded_state[key])
+
+
+
+
+
+# model = GPT(model_config)
+# model.load_state_dict(torch.load(self.model_path, map_location=self.device))
+
+
+
 

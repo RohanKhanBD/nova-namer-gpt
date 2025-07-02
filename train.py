@@ -29,7 +29,7 @@ class NameGPTTrainer:
         self.training_results = []
         # print amount params on after model init
         print(f"Successful model init with {self.model.get_num_params():,} parameters.")
-    
+
     def _get_device(self) -> str:
         """ get best available device based on train config and hardware """
         if self.train_config.device == "cuda" and torch.cuda.is_available():
@@ -45,9 +45,12 @@ class NameGPTTrainer:
         data_dir = self.train_config.data_dir
         splits = {}
         for split in ["train", "dev"]:
+            # bin_path = os.path.join(data_dir, f"{split}.bin")
+            assert os.path.exists(os.path.join(data_dir, f"{split}.bin")), ".bin file not found."
             data = np.memmap(os.path.join(data_dir, f"{split}.bin"), dtype=np.uint16, mode="r")
             splits[split] = torch.from_numpy(data.astype(np.int64))
         # load metadata & compare vocab of gptconfig & dataset
+        assert os.path.exists(os.path.join(data_dir, "meta.pkl")), "meta.pkl file not found"
         with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
             meta = pickle.load(f)
         actual_vocab = meta["vocab_size"]
@@ -147,7 +150,7 @@ class NameGPTTrainer:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
         print(f"Model saved to: {model_dir}")
         return model_dir
-    
+ 
     def _sample_after_train(self) -> None:
         """
         - generate optionally samples after training with sample.py
@@ -189,9 +192,7 @@ class NameGPTTrainer:
 
 def main():
     """main entry point"""
-    train_config = TrainConfig()
-    model_config = GPTconfig()
-    trainer = NameGPTTrainer(train_config, model_config)
+    trainer = NameGPTTrainer(TrainConfig(), GPTconfig())
     trainer.train_model()
 
 

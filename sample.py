@@ -60,8 +60,7 @@ class NameGPTSampler:
             meta = pickle.load(f)
         # Init and load model
         model = GPT(model_config)
-        checkpoint = torch.load(self.model_path, map_location=self.device, weights_only=False)
-        model.load_state_dict(checkpoint["model_state_dict"])
+        model.load_state_dict(torch.load(self.model_path, map_location=self.device))
         model.to(self.device)
         model.eval()
         return model, meta["itos"]

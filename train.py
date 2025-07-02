@@ -26,7 +26,9 @@ class NameGPTTrainer:
         # init model
         self.model = GPT(self.model_config).to(self.device)
         self.optimizer = Optim.Adam(self.model.parameters(), lr=self.train_config.learning_rate)
+        # will be set after training respectively if model saving activated
         self.training_results = []
+        self.model_save_path = None
         # print amount params on after model init
         print(f"Successful model init with {self.model.get_num_params():,} parameters.")
 
@@ -129,9 +131,9 @@ class NameGPTTrainer:
         training_time = (datetime.now() - start_time).total_seconds()
         print(f"Final losses: train_loss {train_loss:.5f}; eval_loss {dev_loss:.5f}")
         print(f"Training completed in {training_time:.2f} seconds")
-        # save model if enabled in config
+        # save model if enabled in config & return model save path
         if self.train_config.save_model:
-            self._save_checkpoint(train_loss, dev_loss, training_time)
+            self.model_save_path = self._save_checkpoint(train_loss, dev_loss, training_time)
         # sample from model after training if enabled in config
         if self.train_config.sample_after_train:
             self._sample_after_train()
@@ -139,14 +141,11 @@ class NameGPTTrainer:
     def _save_checkpoint(self, train_loss: float, dev_loss: float, training_time: float) -> str:
         """ save model state dicts, config data and training results"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        model_dir = os.path.join(self.train_config.model_save_dir, f"{self.train_config.model_name}_{timestamp}")
-        os.makedirs(model_dir, exist_ok=True)
-        # save model
-        torch.save({
-            "model_state_dict": self.model.state_dict(),
-            "optimizer_state_dict": self.optimizer.state_dict(),
-        }, os.path.join(model_dir, "model.pt"))
-        # save config
+        model_save_path = os.path.join(self.train_config.model_save_dir, f"{self.train_config.model_name}_{timestamp}")
+        os.makedirs(model_save_path, exist_ok=True)
+        # inference only saving model -> only state_dict
+        torch.save(self.model.state_dict(), os.path.join(model_save_path, "model.pt"))
+        # save config separately from torch.save
         config_data = {
             "train_config": asdict(self.train_config),
             "model_config": asdict(self.model_config),
@@ -161,10 +160,10 @@ class NameGPTTrainer:
                 "detailed_training_results": self.training_results,
             },
         }
-        with open(os.path.join(model_dir, "config.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(model_save_path, "config.json"), "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
-        print(f"Model saved to: {model_dir}")
-        return model_dir
+        print(f"Model saved to: {model_save_path}")
+        return model_save_path
 
     def _sample_after_train(self) -> None:
         """

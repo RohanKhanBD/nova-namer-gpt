@@ -71,7 +71,7 @@ def test_load_raw_data_valid(temp_names_file_valid):
 
 def test_load_raw_data_invalid(temp_names_file_invalid):
     config = DataConfig()
-    config.input_file = temp_names_file_invalid
+    config.input_file = str(temp_names_file_invalid)
     p = NameProcessor(config)
     names = p._load_raw_data()
     assert len(names) == 1
@@ -90,7 +90,7 @@ def test_is_valid_name():
 
 def test_shuffle_names(temp_names_file_valid):
     config = DataConfig()
-    config.input_file = temp_names_file_valid
+    config.input_file = str(temp_names_file_valid)
     # first processor
     p1 = NameProcessor(config)
     names1 = p1._load_raw_data()
@@ -155,7 +155,7 @@ def test_create_splits():
 def test_export_data(tmp_path, temp_names_file_valid):
     """ equally E2E test of execute() method """
     config = DataConfig()
-    config.input_file = temp_names_file_valid
+    config.input_file = str(temp_names_file_valid)
     config.output_dir = str(tmp_path)
     p = NameProcessor(config)
     p.execute()

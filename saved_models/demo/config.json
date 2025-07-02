@@ -2,7 +2,7 @@
   "train_config": {
     "batch_size": 64,
     "learning_rate": 0.0003,
-    "train_iter": 6500,
+    "train_iter": 5500,
     "eval_iter": 150,
     "eval_interval": 500,
     "device": "mps",
@@ -27,27 +27,25 @@
     "lm_head_bias": false
   },
   "training_results": {
-    "final_train_loss": 1.202,
-    "final_dev_loss": 1.446,
-    "training_time": "23.86 min",
-    "total_parameters": "6,350,592",
+    "final_train_loss": 1.227,
+    "final_dev_loss": 1.44,
+    "training_time": "12.84 min",
+    "total_parameters": "6,334,208",
     "device_used": "mps",
-    "timestamp": "2025-06-23T19:16:45.310397",
+    "timestamp": "2025-07-02T16:59:03.479473",
     "pytorch_version": "2.7.1",
     "detailed_training_results": [
-      "loss after 0 iterations: train_loss 4.11254; eval_loss 4.11363",
-      "loss after 500 iterations: train_loss 1.78064; eval_loss 1.78920",
-      "loss after 1000 iterations: train_loss 1.60506; eval_loss 1.62726",
-      "loss after 1500 iterations: train_loss 1.53052; eval_loss 1.57138",
-      "loss after 2000 iterations: train_loss 1.47445; eval_loss 1.53390",
-      "loss after 2500 iterations: train_loss 1.43579; eval_loss 1.50986",
-      "loss after 3000 iterations: train_loss 1.39537; eval_loss 1.49372",
-      "loss after 3500 iterations: train_loss 1.36155; eval_loss 1.47630",
-      "loss after 4000 iterations: train_loss 1.32931; eval_loss 1.46533",
-      "loss after 4500 iterations: train_loss 1.30181; eval_loss 1.45520",
-      "loss after 5000 iterations: train_loss 1.27264; eval_loss 1.44975",
-      "loss after 5500 iterations: train_loss 1.24486; eval_loss 1.44770",
-      "loss after 6000 iterations: train_loss 1.22458; eval_loss 1.45043"
+      "loss after 0 iterations: train_loss 4.23175; eval_loss 4.23070",
+      "loss after 500 iterations: train_loss 1.75469; eval_loss 1.76474",
+      "loss after 1000 iterations: train_loss 1.59529; eval_loss 1.61794",
+      "loss after 1500 iterations: train_loss 1.52137; eval_loss 1.56353",
+      "loss after 2000 iterations: train_loss 1.46559; eval_loss 1.52789",
+      "loss after 2500 iterations: train_loss 1.42807; eval_loss 1.50487",
+      "loss after 3000 iterations: train_loss 1.38569; eval_loss 1.48628",
+      "loss after 3500 iterations: train_loss 1.34767; eval_loss 1.46693",
+      "loss after 4000 iterations: train_loss 1.31661; eval_loss 1.45934",
+      "loss after 4500 iterations: train_loss 1.28504; eval_loss 1.44906",
+      "loss after 5000 iterations: train_loss 1.25710; eval_loss 1.44712"
     ]
   }
 }

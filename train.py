@@ -121,7 +121,22 @@ class NameGPTTrainer:
         self.model.train()
         return losses
 
-    def _save_checkpoint(self, train_loss: float, dev_loss: float, training_time: float):
+    def _finalize_training(self, start_time: datetime) -> None:
+        """handle final evaluation, saving, and sampling"""
+        # final evaluation
+        final_losses = self._estimate_loss()
+        train_loss, dev_loss = final_losses["train"], final_losses["dev"]
+        training_time = (datetime.now() - start_time).total_seconds()
+        print(f"Final losses: train_loss {train_loss:.5f}; eval_loss {dev_loss:.5f}")
+        print(f"Training completed in {training_time:.2f} seconds")
+        # save model if enabled in config
+        if self.train_config.save_model:
+            self._save_checkpoint(train_loss, dev_loss, training_time)
+        # sample from model after training if enabled in config
+        if self.train_config.sample_after_train:
+            self._sample_after_train()
+
+    def _save_checkpoint(self, train_loss: float, dev_loss: float, training_time: float) -> str:
         """ save model state dicts, config data and training results"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         model_dir = os.path.join(self.train_config.model_save_dir, f"{self.train_config.model_name}_{timestamp}")
@@ -173,21 +188,6 @@ class NameGPTTrainer:
         self.model.eval()
         sampler.generate(self.train_config.num_samples)
         self.model.train()
-
-    def _finalize_training(self, start_time: datetime):
-        """handle final evaluation, saving, and sampling"""
-        # final evaluation
-        final_losses = self._estimate_loss()
-        train_loss, dev_loss = final_losses["train"], final_losses["dev"]
-        training_time = (datetime.now() - start_time).total_seconds()
-        print(f"Final losses: train_loss {train_loss:.5f}; eval_loss {dev_loss:.5f}")
-        print(f"Training completed in {training_time:.2f} seconds")
-        # save model if enabled in config
-        if self.train_config.save_model:
-            self._save_checkpoint(train_loss, dev_loss, training_time)
-        # sample from model after training if enabled in config
-        if self.train_config.sample_after_train:
-            self._sample_after_train()
 
 
 def main():

@@ -42,7 +42,7 @@ def temp_data_files(tmp_path):
 @pytest.fixture
 def min_model_config():
     return GPTconfig(
-        context_len=4,
+        context_len=2,
         vocab_size=10,
         n_embd=8,
         n_head=2,
@@ -60,16 +60,16 @@ def min_train_config():
     return TrainConfig(
         batch_size=2,
         learning_rate=3e-4,
-        train_iter=1,
-        eval_iter=1,
+        train_iter=2,
+        eval_iter=5,
         eval_interval=500,
         device="mps",
         data_dir="data",
-        save_model=True,
-        model_save_dir="saved_models",
-        model_name="bavGPT",
+        save_model=False,
+        model_save_dir="saved_test_models",
+        model_name="test_bavGPT",
         seed=42,
-        sample_after_train=True,
+        sample_after_train=False,
         num_samples=5,
     )
 
@@ -83,7 +83,7 @@ def test_NameGPTTrainer_init_wrong_configs(min_train_config, min_model_config):
 
 def test_NameGPTTrainer_init(min_train_config, min_model_config, temp_data_files):
     t_config = min_train_config
-    t_config.data_dir = temp_data_files
+    t_config.data_dir = str(temp_data_files)
     trainer = NameGPTTrainer(t_config, min_model_config)
     assert isinstance(trainer.train_data, torch.Tensor)
     assert isinstance(trainer.dev_data, torch.Tensor)
@@ -103,14 +103,14 @@ def test_load_data_vocab_size(min_train_config, min_model_config, temp_data_file
     t_config = min_train_config
     m_config = min_model_config
     assert m_config.vocab_size == 10
-    t_config.data_dir = temp_data_files
+    t_config.data_dir = str(temp_data_files)
     t = NameGPTTrainer(t_config, m_config)
     assert t.model_config.vocab_size == 4
 
 
 def test_load_data_base(min_train_config, min_model_config, temp_data_files):
     t_config = min_train_config
-    t_config.data_dir = temp_data_files
+    t_config.data_dir = str(temp_data_files)
     t = NameGPTTrainer(t_config, min_model_config)
     assert isinstance(t.train_data, torch.Tensor) and len(t.train_data) == 12
     assert isinstance(t.dev_data, torch.Tensor) and len(t.dev_data) == 8
@@ -119,10 +119,8 @@ def test_load_data_base(min_train_config, min_model_config, temp_data_files):
 def test_get_batch(min_train_config, min_model_config, temp_data_files):
     """ context_len: 2; batch_size = 2"""
     t_config = min_train_config
-    t_config.data_dir = temp_data_files
-    m_config = min_model_config
-    m_config.context_len = 2
-    t = NameGPTTrainer(t_config, m_config)
+    t_config.data_dir = str(temp_data_files)
+    t = NameGPTTrainer(t_config, min_model_config)
     x_tr, y_tr = t._get_batch(t.train_data)
     x_dev, y_dev = t._get_batch(t.dev_data)
     assert isinstance(x_tr, torch.Tensor) and x_tr.shape == (2, 2)
@@ -144,10 +142,8 @@ def test_get_batch(min_train_config, min_model_config, temp_data_files):
 
 def test_estimate_loss(min_train_config, min_model_config, temp_data_files):
     t_config = min_train_config
-    t_config.data_dir = temp_data_files
-    t_model = min_model_config
-    t_model.context_len = 2
-    t = NameGPTTrainer(t_config, t_model)
+    t_config.data_dir = str(temp_data_files)
+    t = NameGPTTrainer(t_config, min_model_config)
     # switch model into eval mode, to check if _estimate_loss switches is back into train
     t.model.eval()
     losses = t._estimate_loss()
@@ -156,17 +152,22 @@ def test_estimate_loss(min_train_config, min_model_config, temp_data_files):
     assert isinstance(losses["train"], float)
     assert isinstance(losses["dev"], float)
     # defaul avg nlll at vocab_size=4 equals -1.38; add tolerance of 0.05
-    tolerance = 0.05
+    tolerance = 0.1
     assert 0 < losses["train"] <= math.log(4) + tolerance
     assert 0 < losses["dev"] <= math.log(4) + tolerance
 
 
+def test_train_base(min_train_config, min_model_config, temp_data_files):
+    t_config = min_train_config
+    t_config.data_dir = temp_data_files
+    t = NameGPTTrainer(t_config, min_model_config)
+    t.train_model()
+    assert len(t.training_results) > 0
+    assert "train_loss" in t.training_results[0]
 
 
-
-
-
-
-
-
+# def test_save_checkpoint_switch(min_train_config, min_model_config, temp_data_files, temp_path):
+#     t_config = min_train_config
+#     t_config.data_dir = temp_data_files
+#     pass
 

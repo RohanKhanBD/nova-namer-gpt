@@ -25,3 +25,11 @@ assets/
 data/*.bin
 data/*.pkl
 
+# saved_models: ignore everything except demo folder
+saved_models/*
+!saved_models/demo/
+
+# demo folder: ignore everything except model.pt and config.json
+saved_models/demo/*
+!saved_models/demo/model.pt
+!saved_models/demo/config.json

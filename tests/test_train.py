@@ -6,6 +6,8 @@ import torch.nn as nn
 import numpy as np
 import pickle
 import pytest
+from typing import Dict
+import math
 
 
 @pytest.fixture
@@ -59,7 +61,7 @@ def min_train_config():
         batch_size=2,
         learning_rate=3e-4,
         train_iter=1,
-        eval_iter=5,
+        eval_iter=1,
         eval_interval=500,
         device="mps",
         data_dir="data",
@@ -114,6 +116,49 @@ def test_load_data_base(min_train_config, min_model_config, temp_data_files):
     assert isinstance(t.dev_data, torch.Tensor) and len(t.dev_data) == 8
 
 
+def test_get_batch(min_train_config, min_model_config, temp_data_files):
+    """ context_len: 2; batch_size = 2"""
+    t_config = min_train_config
+    t_config.data_dir = temp_data_files
+    m_config = min_model_config
+    m_config.context_len = 2
+    t = NameGPTTrainer(t_config, m_config)
+    x_tr, y_tr = t._get_batch(t.train_data)
+    x_dev, y_dev = t._get_batch(t.dev_data)
+    assert isinstance(x_tr, torch.Tensor) and x_tr.shape == (2, 2)
+    assert isinstance(y_tr, torch.Tensor) and y_tr.shape == (2, 2)
+    assert isinstance(x_dev, torch.Tensor) and x_dev.shape == (2, 2)
+    assert isinstance(y_dev, torch.Tensor) and y_dev.shape == (2, 2)
+    assert not torch.equal(x_tr, y_tr)
+    # check if first value of first batch x_tr is not element in y_tr; vs second value is element
+    first_xtr = x_tr[0][0]
+    assert not (y_tr[0] == first_xtr).any()
+    second_xtr = x_tr[0][1]
+    assert (y_tr[0] == second_xtr).any()
+    # check for last value of y_tr
+    last_ytr = y_tr[-1][-1]
+    assert not (x_tr[-1] == last_ytr).any()
+    sec_last_ytr = y_tr[-1][-2]
+    assert (x_tr[-1] == sec_last_ytr).any()
+
+
+def test_estimate_loss(min_train_config, min_model_config, temp_data_files):
+    t_config = min_train_config
+    t_config.data_dir = temp_data_files
+    t_model = min_model_config
+    t_model.context_len = 2
+    t = NameGPTTrainer(t_config, t_model)
+    # switch model into eval mode, to check if _estimate_loss switches is back into train
+    t.model.eval()
+    losses = t._estimate_loss()
+    assert t.model.training
+    assert isinstance(losses, Dict) and len(losses) == 2
+    assert isinstance(losses["train"], float)
+    assert isinstance(losses["dev"], float)
+    # defaul avg nlll at vocab_size=4 equals -1.38; add tolerance of 0.05
+    tolerance = 0.05
+    assert 0 < losses["train"] <= math.log(4) + tolerance
+    assert 0 < losses["dev"] <= math.log(4) + tolerance
 
 
 

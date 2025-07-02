@@ -71,7 +71,7 @@ class NameGPTTrainer:
             (self.train_config.batch_size,),
         )
         x = torch.stack([split[t: t + self.model_config.context_len] for t in batch_borders])
-        y = torch.stack([split[t + 1: t + self.model_config.context_len + 1]for t in batch_borders])
+        y = torch.stack([split[t + 1: t + self.model_config.context_len + 1] for t in batch_borders])
         return x, y
 
     def train_model(self):
@@ -106,7 +106,7 @@ class NameGPTTrainer:
         self._finalize_training(start_time)
 
     @torch.no_grad()
-    def _estimate_loss(self) -> Dict[torch.Tensor, float]:
+    def _estimate_loss(self) -> Dict[str, float]:
         """ evaluate loss on train and dev splits """
         self.model.eval()
         losses = {}
@@ -117,10 +117,10 @@ class NameGPTTrainer:
                 x, y = x.to(self.device), y.to(self.device)
                 _, loss = self.model(x, y)
                 split_losses[i] = loss.item()
-            losses[split_name] = split_losses.mean()
+            losses[split_name] = split_losses.mean().item()
         self.model.train()
         return losses
-    
+
     def _save_checkpoint(self, train_loss: float, dev_loss: float, training_time: float):
         """ save model state dicts, config data and training results"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -150,7 +150,7 @@ class NameGPTTrainer:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
         print(f"Model saved to: {model_dir}")
         return model_dir
- 
+
     def _sample_after_train(self) -> None:
         """
         - generate optionally samples after training with sample.py

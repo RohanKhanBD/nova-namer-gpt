@@ -27,9 +27,11 @@ class NameGPTTrainer:
         # init model
         self.model = GPT(self.model_config).to(self.device)
         self.optimizer = Optim.Adam(self.model.parameters(), lr=self.train_config.learning_rate)
-        # will be set after training respectively if model saving activated
+        # will be updated after training
         self.training_results = []
+        self.final_losses = {}
         self.model_save_path = None
+
         # print amount params on after model init
         print(f"Successful model init with {self.model.get_num_params():,} parameters.")
 
@@ -126,9 +128,9 @@ class NameGPTTrainer:
 
     def _finalize_training(self, start_time: datetime) -> None:
         """handle final evaluation, saving, and sampling"""
-        # final evaluation
-        final_losses = self._estimate_loss()
-        train_loss, dev_loss = final_losses["train"], final_losses["dev"]
+        # save final losses into obj, then unpack & print
+        self.final_losses = self._estimate_loss()
+        train_loss, dev_loss = self.final_losses["train"], self.final_losses["dev"]
         training_time = (datetime.now() - start_time).total_seconds()
         print(f"Final losses: train_loss {train_loss:.5f}; eval_loss {dev_loss:.5f}")
         print(f"Training completed in {training_time:.2f} seconds")

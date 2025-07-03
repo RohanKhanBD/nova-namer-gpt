@@ -1,6 +1,7 @@
-from config import TrainConfig, DataConfig
+from config import TrainConfig, DataConfig, SampleConfig
 from model import GPTconfig, GPT
 from train import NameGPTTrainer
+from sample import NameGPTSampler
 import torch
 import torch.nn as nn
 import numpy as np
@@ -9,6 +10,9 @@ import pytest
 from typing import Dict
 import math
 import os
+import json
+from io import StringIO
+import sys
 
 
 @pytest.fixture
@@ -57,7 +61,7 @@ def min_model_config():
 
 
 @pytest.fixture
-def min_train_config():
+def min_train_config(tmp_path):
     return TrainConfig(
         batch_size=2,
         learning_rate=3e-4,
@@ -66,8 +70,7 @@ def min_train_config():
         eval_interval=500,
         device="cpu",
         data_dir="data",
-        save_model=False,
-        model_save_dir="saved_test_models",
+        model_save_dir=str(tmp_path),
         model_name="test_bavGPT",
         seed=42,
         sample_after_train=False,
@@ -170,8 +173,6 @@ def test_train_base(min_train_config, min_model_config, temp_data_files):
 def test_save_checkpoint_model(min_train_config, min_model_config, temp_data_files, tmp_path):
     t_config = min_train_config
     t_config.data_dir = str(temp_data_files)
-    t_config.save_model = True
-    t_config.model_save_dir = str(tmp_path)
     t = NameGPTTrainer(min_train_config, min_model_config)
     # check if model_save_path was updated from None to str after train_model()
     assert t.model_save_path is None
@@ -188,12 +189,27 @@ def test_save_checkpoint_model(min_train_config, min_model_config, temp_data_fil
         assert torch.equal(original_state[key], loaded_state[key])
 
 
+def test_save_checkpoint_metadata(min_train_config, min_model_config, temp_data_files, tmp_path):
+    t_config = min_train_config
+    t_config.data_dir = str(temp_data_files)
+    t = NameGPTTrainer(min_train_config, min_model_config)
+    t.train_model()
+    json_path = os.path.join(t.model_save_path, "config.json")
+    with open(json_path, mode="r") as f:
+        saved_config = json.load(f)
+    assert saved_config["model_config"]["ffw_widen"] == 4
+    assert len(saved_config["training_results"]["detailed_training_results"]) > 0
 
 
-
-# model = GPT(model_config)
-# model.load_state_dict(torch.load(self.model_path, map_location=self.device))
-
-
-
-
+# def test_sample_after_train(min_train_config, min_model_config, temp_data_files):
+#     t_config = min_train_config
+#     t_config.data_dir = str(temp_data_files)
+#     t_config.sample_after_train = True
+#     t = NameGPTTrainer(t_config, min_model_config)
+#     # capture stdout for sampling to console
+#     captured_output = StringIO()
+#     sys.stdout = captured_output
+#     t.train_model()
+#     sys.stdout = sys.__stdout__
+#     output = captured_output.getvalue()
+#     assert "1." in output #....

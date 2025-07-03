@@ -14,14 +14,13 @@ class TrainConfig:
 
     batch_size: int = 64
     learning_rate: float = 3e-4
-    train_iter: int = 5500
+    train_iter: int = 1
     eval_iter: int = 150
     eval_interval: int = 500
     device: str = "mps"
     # dir with bin / meta files for training
     data_dir: str = "data"
-    # flag to save model
-    save_model: bool = True
+    # save model after train
     model_save_dir: str = "saved_models"
     model_name: str = "bavGPT"
     # seed for torch

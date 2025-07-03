@@ -10,6 +10,7 @@ from config import TrainConfig
 from model import GPTconfig, GPT
 from typing import Tuple, Dict
 
+
 """ Bavarian City Name GPT // lightweight training scrip """
 
 
@@ -131,9 +132,8 @@ class NameGPTTrainer:
         training_time = (datetime.now() - start_time).total_seconds()
         print(f"Final losses: train_loss {train_loss:.5f}; eval_loss {dev_loss:.5f}")
         print(f"Training completed in {training_time:.2f} seconds")
-        # save model if enabled in config & return model save path
-        if self.train_config.save_model:
-            self.model_save_path = self._save_checkpoint(train_loss, dev_loss, training_time)
+        # save model after training & return path
+        self.model_save_path = self._save_checkpoint(train_loss, dev_loss, training_time)
         # sample from model after training if enabled in config
         if self.train_config.sample_after_train:
             self._sample_after_train()

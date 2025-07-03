@@ -73,8 +73,7 @@ def min_train_config(tmp_path):
         model_save_dir=str(tmp_path),
         model_name="test_bavGPT",
         seed=42,
-        sample_after_train=False,
-        num_samples=5,
+        num_samples=2,
     )
 
 
@@ -170,7 +169,7 @@ def test_train_base(min_train_config, min_model_config, temp_data_files):
     assert "train_loss" in t.training_results[0]
 
 
-def test_save_checkpoint_model(min_train_config, min_model_config, temp_data_files, tmp_path):
+def test_save_checkpoint_model(min_train_config, min_model_config, temp_data_files):
     t_config = min_train_config
     t_config.data_dir = str(temp_data_files)
     t = NameGPTTrainer(min_train_config, min_model_config)
@@ -189,7 +188,7 @@ def test_save_checkpoint_model(min_train_config, min_model_config, temp_data_fil
         assert torch.equal(original_state[key], loaded_state[key])
 
 
-def test_save_checkpoint_metadata(min_train_config, min_model_config, temp_data_files, tmp_path):
+def test_save_checkpoint_metadata(min_train_config, min_model_config, temp_data_files):
     t_config = min_train_config
     t_config.data_dir = str(temp_data_files)
     t = NameGPTTrainer(min_train_config, min_model_config)
@@ -201,15 +200,16 @@ def test_save_checkpoint_metadata(min_train_config, min_model_config, temp_data_
     assert len(saved_config["training_results"]["detailed_training_results"]) > 0
 
 
-# def test_sample_after_train(min_train_config, min_model_config, temp_data_files):
-#     t_config = min_train_config
-#     t_config.data_dir = str(temp_data_files)
-#     t_config.sample_after_train = True
-#     t = NameGPTTrainer(t_config, min_model_config)
-#     # capture stdout for sampling to console
-#     captured_output = StringIO()
-#     sys.stdout = captured_output
-#     t.train_model()
-#     sys.stdout = sys.__stdout__
-#     output = captured_output.getvalue()
-#     assert "1." in output #....
+def test_sample_after_train(min_train_config, min_model_config, temp_data_files):
+    t_config = min_train_config
+    t_config.data_dir = str(temp_data_files)
+    t = NameGPTTrainer(t_config, min_model_config)
+    # capture stdout for sampling to console
+    captured_output = StringIO()
+    sys.stdout = captured_output
+    t.train_model()
+    sys.stdout = sys.__stdout__
+    output = captured_output.getvalue()
+    assert "1." in output
+    assert "2." in output
+

@@ -25,8 +25,7 @@ class TrainConfig:
     model_name: str = "bavGPT"
     # seed for torch
     seed: int = 42
-    # create samples after training optionally
-    sample_after_train: bool = True
+    # print samples after training
     num_samples: int = 20
 
 

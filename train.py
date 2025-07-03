@@ -134,9 +134,8 @@ class NameGPTTrainer:
         print(f"Training completed in {training_time:.2f} seconds")
         # save model after training & return path
         self.model_save_path = self._save_checkpoint(train_loss, dev_loss, training_time)
-        # sample from model after training if enabled in config
-        if self.train_config.sample_after_train:
-            self._sample_after_train()
+        # print samples after training
+        self._sample_after_train()
 
     def _save_checkpoint(self, train_loss: float, dev_loss: float, training_time: float) -> str:
         """ save model state dicts, config data and training results"""

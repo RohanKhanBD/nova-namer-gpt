@@ -46,7 +46,7 @@ def configs(tmp_path):
     train_config = TrainConfig(
         batch_size=2, learning_rate=3e-4, train_iter=2, eval_iter=5,
         eval_interval=500, device="cpu", data_dir="data",
-        model_save_dir=str(tmp_path), model_name="test_bavGPT",
+        saved_models_root=str(tmp_path), model_name="test_bavGPT",
         seed=42, num_samples=2
     )
     return train_config, model_config

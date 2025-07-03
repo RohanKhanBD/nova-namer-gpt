@@ -1,7 +1,6 @@
 from model import GPTconfig, GPT, TransformerBlock, Ffw, MultiHeadAttention
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import pytest
 from config import TrainConfig
 

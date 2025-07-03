@@ -88,7 +88,7 @@ class NameGPTTrainer:
         # training loop
         print("Training started...")
         for i in range(self.train_config.train_iter):
-            
+
             # eval loss & print after certain amount of train steps
             if i % self.train_config.eval_interval == 0:
                 losses = self._estimate_loss()
@@ -142,11 +142,10 @@ class NameGPTTrainer:
 
     def _save_checkpoint(self, train_loss: float, dev_loss: float, training_time: float) -> str:
         """ save model state dicts, config data and training results"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        model_save_path = os.path.join(self.train_config.model_save_dir, f"{self.train_config.model_name}_{timestamp}")
-        os.makedirs(model_save_path, exist_ok=True)
+        save_dir = self.train_config.save_dir_current
+        os.makedirs(save_dir, exist_ok=True)
         # inference only saving model -> only state_dict
-        torch.save(self.model.state_dict(), os.path.join(model_save_path, "model.pt"))
+        torch.save(self.model.state_dict(), os.path.join(save_dir, "model.pt"))
         # save config separately from torch.save
         config_data = {
             "train_config": asdict(self.train_config),
@@ -162,16 +161,17 @@ class NameGPTTrainer:
                 "detailed_training_results": self.training_results,
             },
         }
-        with open(os.path.join(model_save_path, "config.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
-        print(f"Model saved to: {model_save_path}")
-        return model_save_path
+        print(f"Model saved to: {save_dir}")
+        return save_dir
 
     def _sample_after_train(self) -> None:
         """
         - generate optionally samples after training with sample.py
         - samples of this mode are only print, not saved
         """
+
         print(f"\nGenerating {self.train_config.num_samples} sample names:")
         # Create sampler with current model
         sampler = NameGPTSampler(

@@ -161,12 +161,12 @@ def test_save_checkpoint_model(configs, temp_data_files):
     train_config.data_dir = str(temp_data_files)
     t = NameGPTTrainer(train_config, model_config)
     # check if model_save_path was updated from None to str after train_model()
-    assert t.model_save_path is None
+    assert t.model_save_dir is None
     t.train_model()
-    assert isinstance(t.model_save_path, str)
+    assert isinstance(t.model_save_dir, str)
     # setup fresh model, load state_dict into it and compare with original state
     m = GPT(model_config)
-    checkpoint = torch.load(os.path.join(t.model_save_path, "model.pt"), map_location="cpu")
+    checkpoint = torch.load(os.path.join(t.model_save_dir, "model.pt"), map_location="cpu")
     m.load_state_dict(checkpoint)
     # Compare state dicts directly
     original_state = {k: v.cpu() for k, v in t.model.state_dict().items()}
@@ -180,7 +180,7 @@ def test_save_checkpoint_metadata(configs, temp_data_files):
     train_config.data_dir = str(temp_data_files)
     t = NameGPTTrainer(train_config, model_config)
     t.train_model()
-    json_path = os.path.join(t.model_save_path, "config.json")
+    json_path = os.path.join(t.model_save_dir, "config.json")
     with open(json_path, mode="r") as f:
         saved_config = json.load(f)
     assert saved_config["model_config"]["ffw_widen"] == 4

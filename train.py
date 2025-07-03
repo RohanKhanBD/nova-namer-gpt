@@ -31,7 +31,7 @@ class NameGPTTrainer:
         # will be updated after training
         self.training_results = []
         self.final_losses = {}
-        self.model_save_path = None
+        self.model_save_dir = None
 
         # print amount params on after model init
         print(f"Successful model init with {self.model.get_num_params():,} parameters.")
@@ -136,7 +136,7 @@ class NameGPTTrainer:
         print(f"Final losses: train_loss {train_loss:.5f}; eval_loss {dev_loss:.5f}")
         print(f"Training completed in {training_time:.2f} seconds")
         # save model after training & return path
-        self.model_save_path = self._save_checkpoint(train_loss, dev_loss, training_time)
+        self.model_save_dir = self._save_checkpoint(train_loss, dev_loss, training_time)
         # print samples after training
         self._sample_after_train()
 
@@ -167,11 +167,7 @@ class NameGPTTrainer:
         return save_dir
 
     def _sample_after_train(self) -> None:
-        """
-        - generate optionally samples after training with sample.py
-        - samples of this mode are only print, not saved
-        """
-
+        """always print some samples after training"""
         print(f"\nGenerating {self.train_config.num_samples} sample names:")
         # Create sampler with current model
         sampler = NameGPTSampler(

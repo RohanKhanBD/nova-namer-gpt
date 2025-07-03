@@ -28,6 +28,7 @@ class NameGPTSampler:
         data_dir=None,
         device=None,
     ):
+        assert isinstance(sample_config, SampleConfig), "Invalid sample config type."
         self.config = sample_config
         # received from main() as default or command-line argument
         self.model_path = model_path

@@ -6,8 +6,9 @@ import numpy as np
 import pickle
 import json
 from dataclasses import asdict
-from config import TrainConfig
+from config import TrainConfig, SampleConfig
 from model import GPTconfig, GPT
+from sample import NameGPTSampler
 from typing import Tuple, Dict
 
 
@@ -87,7 +88,7 @@ class NameGPTTrainer:
         # training loop
         print("Training started...")
         for i in range(self.train_config.train_iter):
-
+            
             # eval loss & print after certain amount of train steps
             if i % self.train_config.eval_interval == 0:
                 losses = self._estimate_loss()
@@ -171,17 +172,12 @@ class NameGPTTrainer:
         - generate optionally samples after training with sample.py
         - samples of this mode are only print, not saved
         """
-        from sample import NameGPTSampler
-        from config import SampleConfig
         print(f"\nGenerating {self.train_config.num_samples} sample names:")
-        # Load vocabulary for sampler
-        with open(os.path.join(self.train_config.data_dir, "meta.pkl"), "rb") as f:
-            meta = pickle.load(f)
         # Create sampler with current model
         sampler = NameGPTSampler(
             sample_config=SampleConfig(),
             model=self.model,
-            itos=meta["itos"],
+            data_dir=self.train_config.data_dir,
             device=self.device,
         )
         sampler.generate(self.train_config.num_samples)

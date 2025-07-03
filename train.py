@@ -182,10 +182,7 @@ class NameGPTTrainer:
             itos=meta["itos"],
             device=self.device,
         )
-        # Switch modes and generate
-        self.model.eval()
         sampler.generate(self.train_config.num_samples)
-        self.model.train()
 
 
 def main():

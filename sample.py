@@ -65,35 +65,8 @@ class NameGPTSampler:
         model.eval()
         return model, meta["itos"]
 
-    def _save_samples(self, samples: List[str]) -> None:
-        """
-        save generated samples to a text file
-        - creates samples directory in model folder if doesn't exist
-        - saves samples with sequential numbering and line breaks
-        - filename format: samples_YYYYMMDD_HHMMSS.txt
-        """
-        # get dir from model path
-        model_dir = os.path.dirname(self.model_path)
-        samples_dir = os.path.join(model_dir, "samples")
-        # Create samples directory if it doesn't exist
-        os.makedirs(samples_dir, exist_ok=True)
-        # Create timestamp for filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"samples_{timestamp}.txt"
-        filepath = os.path.join(samples_dir, filename)
-        # Format samples with sequential numbering
-        formatted_samples = [
-            f"{i}. {sample}" for i, sample in enumerate(samples, 1)
-        ]
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write("\n".join(formatted_samples))
-        print(f"Samples saved to: {filepath}")
-
     @torch.no_grad()
-    def generate(
-        self,
-        num_samples: int,
-    ) -> List[str]:
+    def generate(self, num_samples: int) -> List[str]:
         """
         generate names:
         - context: start always with 0 context for linebreak as first char;
@@ -104,7 +77,7 @@ class NameGPTSampler:
         - when sampling from file: always save to file
         - when sampling after training: only print, never save
         """
-
+        self.model.eval()
         out = []
         # sample num_sample new names
         for i in range(num_samples):
@@ -128,17 +101,40 @@ class NameGPTSampler:
                 context = torch.cat(
                     [context, torch.tensor([[idx]], device=self.device)], dim=1
                 )
-
             generated_name = "".join(name)
             out.append(generated_name)
             print(f"{i+1:2d}. {generated_name}")
-
         # Auto-save behavior based on mode
         if not self.is_after_training:
             # Sampling from file -> always save
             self._save_samples(out)
-
+        self.model.train()
         return out
+    
+    def _save_samples(self, samples: List[str]) -> None:
+        """
+        save generated samples to a text file
+        - creates samples directory in model folder if doesn't exist
+        - saves samples with sequential numbering and line breaks
+        - filename format: samples_YYYYMMDD_HHMMSS.txt
+        - samples from "sample_after_train" are not saved, only printed
+        """
+        # get dir from model path
+        model_dir = os.path.dirname(self.model_path)
+        samples_dir = os.path.join(model_dir, "samples")
+        # Create samples directory if it doesn't exist
+        os.makedirs(samples_dir, exist_ok=True)
+        # Create timestamp for filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"samples_{timestamp}.txt"
+        filepath = os.path.join(samples_dir, filename)
+        # Format samples with sequential numbering
+        formatted_samples = [
+            f"{i}. {sample}" for i, sample in enumerate(samples, 1)
+        ]
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write("\n".join(formatted_samples))
+        print(f"Samples saved to: {filepath}")
 
 
 def main():

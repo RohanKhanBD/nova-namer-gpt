@@ -20,6 +20,8 @@ Bavarian City Name GPT // inference script
 
 class NameGPTSampler:
 
+    # insert class method factories!!
+    
     def __init__(
         self,
         sample_config: SampleConfig,

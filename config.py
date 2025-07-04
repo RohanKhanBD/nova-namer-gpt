@@ -33,8 +33,7 @@ class TrainConfig:
     def save_dir_current(self) -> str:
         """e.g. saved_models/bavGPT_20250703_173529"""
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        return os.path.join(self.saved_models_root,
-                            f"{self.model_name}_{ts}")
+        return os.path.join(self.saved_models_root, f"{self.model_name}_{ts}")
 
 
 @dataclass

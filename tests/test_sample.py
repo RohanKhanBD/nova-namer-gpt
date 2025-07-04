@@ -38,3 +38,6 @@ def test_NameGPTSample_init_saved_model(temp_data_files, configs, sample_config)
     model_path = os.path.join(t.model_save_dir, "model.pt")
     s = NameGPTSampler(sample_config, model_path)
     assert all(torch.equal(p0, p1) for p0, p1 in zip(t.model.state_dict().values(), s.model.state_dict().values()))
+
+
+

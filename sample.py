@@ -28,14 +28,13 @@ class NameGPTSampler:
         model_path=None,
         model=None,
         data_dir=None,
-        device=None,
     ):
         assert isinstance(sample_config, SampleConfig), "Invalid sample config type."
         self.config = sample_config
         # received from main() as default or command-line argument
         self.model_path = model_path
         # if device not as argument from training, take from sample config
-        self.device = device or (sample_config.device if torch.backends.mps.is_available() else "cpu")
+        self.device = sample_config.device if torch.backends.mps.is_available() else "cpu"
         # determine mode: after_training (with model+itos) vs from_file
         self.is_after_training = model is not None and data_dir is not None
         # case 1: sample_after_train -> print some samples after each training run

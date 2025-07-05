@@ -169,12 +169,11 @@ class NameGPTTrainer:
     def _sample_after_train(self) -> None:
         """always print some samples after training"""
         print(f"\nGenerating {self.train_config.num_samples} sample names:")
-        # Create sampler with current model
+        # create sampler with current model using same device as training
         sampler = NameGPTSampler(
-            sample_config=SampleConfig(),
+            sample_config=SampleConfig(device=self.train_config.device),
             model=self.model,
             data_dir=self.train_config.data_dir,
-            device=self.device,
         )
         sampler.generate(self.train_config.num_samples)
 

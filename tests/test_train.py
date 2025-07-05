@@ -1,4 +1,4 @@
-from config import TrainConfig, DataConfig
+from config import TrainConfig, DataConfig, SampleConfig
 from model import GPTconfig, GPT
 from train import NameGPTTrainer
 import torch
@@ -50,6 +50,13 @@ def configs(tmp_path):
         seed=42, num_samples=2
     )
     return train_config, model_config
+
+# @pytest.fixture
+# def sample_config(tmp_path):
+#     return SampleConfig(device="cpu", num_samples=5, max_length=10, temperature=1.0)
+
+# @pytest.fixture
+# def SampleConfig
 
 
 def test_NameGPTTrainer_init_wrong_configs(configs):

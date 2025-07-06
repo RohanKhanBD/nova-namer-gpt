@@ -33,7 +33,7 @@ class TrainConfig:
 
     @property
     def save_dir_current(self) -> str:
-        """e.g. saved_models/bavGPT_20250703_173529"""
+        """ e.g. saved_models/bavGPT_20250703_173529 """
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         return os.path.join(self.saved_models_root, f"{self.model_name}_{ts}")
 
@@ -46,9 +46,16 @@ class SampleConfig:
     """
 
     device: str = "mps"
-    num_samples: int = 25
+    num_samples: int = 50
     max_length: int = 50
     temperature: float = 1.0
+    saved_samples_root: str = "saved_samples"
+
+    @property
+    def save_sample_filename(self) -> str:
+        """ e.g. samples_20250706_172627.txt """
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"samples_{ts}.txt"
 
 
 @dataclass

@@ -10,6 +10,7 @@
     "save_model": true,
     "model_save_dir": "saved_models",
     "model_name": "bavGPT",
+    "model_filename":"model.pt",
     "seed": 42,
     "sample_after_train": true,
     "num_samples": 20

@@ -1,11 +1,10 @@
 import os
+import sys
 import torch
 import torch.nn.functional as F
 import pickle
 import json
-import sys
 import argparse
-from datetime import datetime
 from config import SampleConfig
 from model import GPTconfig, GPT
 from typing import List, Dict, Tuple
@@ -26,23 +25,24 @@ class NameGPTSampler:
     - samples from in-mem model are only print; from saved checkpoint are always saved as .txt
     - from_training: pass call further as is for in-mem model with added save_samples argument
     - from_saved_model: load model from checkpoint and pass with added save_samples argument
-    - 
     """
 
     @classmethod
     def from_training(cls, sample_config: SampleConfig, model_dir: str, model: GPT):
-        return cls(sample_config, model_dir, model, save_samples=False)
+        return cls(sample_config, model_dir, model, enforce_novelty=False, save_samples=False)
 
     @classmethod
     def from_saved_model(cls, sample_config: SampleConfig, model_dir: str):
         model = cls._load_model(model_dir, sample_config.device)
-        return cls(sample_config, model_dir, model, save_samples=True)
+        enforce_novelty = True if sample_config.enforce_novelty else False
+        return cls(sample_config, model_dir, model, enforce_novelty, save_samples=True)
 
     def __init__(
         self,
         sample_config: SampleConfig,
         model_dir: str,
         model: GPT,
+        enforce_novelty: bool,
         save_samples: bool,
     ):
         assert isinstance(sample_config, SampleConfig), "Invalid sample config type."
@@ -52,6 +52,7 @@ class NameGPTSampler:
         self.model = model
         # load itos with same process for both entry points
         self.itos: Dict = self._load_vocab(self.model_dir)
+        self.enforce_novelty: bool = enforce_novelty
         self.save_samples: bool = save_samples
 
     @staticmethod
@@ -67,7 +68,7 @@ class NameGPTSampler:
         model.load_state_dict(torch.load(model_path, map_location=device))
         model.to(device)
         return model
-    
+
     @staticmethod
     def _load_vocab(model_dir: str) -> Dict:
         """ used in both sample_after_train and inference mode """
@@ -79,7 +80,6 @@ class NameGPTSampler:
         with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
             meta = pickle.load(f)
         return meta["itos"]
-
 
     def _generate_single_name(self) -> str:
         """ generate a single name with current model; single name can have max_length chars """
@@ -98,6 +98,15 @@ class NameGPTSampler:
             name.append(self.itos[idx])
             context = torch.cat([context, torch.tensor([[idx]], device=self.device)], dim=1)
         return "".join(name)
+    
+    def _check_name(self, name: str) -> bool:
+        with open(os.path.join(self.model_dir, "config.json"), "r") as f:
+            saved_config = json.load(f)
+        # get in there location of data_dir, the reference to the meta.pkl containing vocab
+        data_dir = saved_config["train_config"]["data_dir"]
+        with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
+            meta = pickle.load(f)
+        return name in meta["training_names"]
 
     @torch.no_grad()
     def generate(self, num_samples: int) -> List[str]:
@@ -108,10 +117,20 @@ class NameGPTSampler:
         print(f"\nGenerating {num_samples} sample names:")
         self.model.eval()
         names = []
-        for i in range(num_samples):
+        # setup duplicate counter & inform user
+        if self.enforce_novelty:
+            duplicate_counter = 0
+            print("Duplicated to training data are not allowed.")
+        while len(names) < num_samples:
             name = self._generate_single_name()
+            # check for duplicates
+            if self.enforce_novelty and self._check_name(name):
+                duplicate_counter += 1
+                continue
             names.append(name)
-            print(f"{i+1:2d}. {name}")
+            print(f"{len(names):2d}. {name}")
+        if self.enforce_novelty:
+            print(f"A total of {duplicate_counter} duplicates were discarded.")
         if self.save_samples:
             self._save_samples(names)
         self.model.train()

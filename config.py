@@ -42,13 +42,16 @@ class TrainConfig:
 class SampleConfig:
     """
     - sampling configuration
-    - samples are always saved as .txt in model dir
+    - samples derived from saved models are always saved as .txt in model dir
+    - enforce novelty only relevant and configurable at sampling from saved model
     """
 
     device: str = "mps"
     num_samples: int = 50
     max_length: int = 50
     temperature: float = 1.0
+    # discards 1to1 copies of training data values
+    enforce_novelty: bool = True
     saved_samples_root: str = "saved_samples"
 
     @property

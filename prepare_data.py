@@ -12,6 +12,7 @@ Bavarian City Name GPT // data prep & encoding
 - default params / options are saved in config.py -> DataConfig
 - expects a input .txt file with continious stream of name strings sep by \n
 - saves train / dev / test splits bin files & metadata to output_dir specified in DataConfig
+- saves hash set of all training names to check against when sampling
 """
 
 
@@ -24,6 +25,7 @@ class NameProcessor:
         self.itos: Dict[int, str] = {}
         self.vocab_size: int = 0
         self.rng = random.Random(self.config.seed)
+        self.training_names_set = set()
 
     def _load_raw_data(self) -> List[str]:
         """
@@ -44,7 +46,7 @@ class NameProcessor:
     def _is_valid_name(self, name: str) -> bool:
         """simple check if name meets criteria; as of now, check only len"""
         return self.config.min_name_length <= len(name) <= self.config.max_name_length
-   
+
     def _shuffle_names(self, names: List[str]) -> List[str]:
         """ shuffle names using seeded RNG, returns a new shuffled list """
         shuffled_names = names.copy()
@@ -92,6 +94,7 @@ class NameProcessor:
             "vocab_size": self.vocab_size,
             "itos": self.itos,
             "stoi": self.stoi,
+            "training_names": self.training_names_set,
         }
         with open(os.path.join(self.config.output_dir, "meta.pkl"), "wb") as f:
             pickle.dump(meta, f)
@@ -105,6 +108,8 @@ class NameProcessor:
         """
         names = self._load_raw_data()
         names = self._shuffle_names(names)
+        # saved hash set of training names
+        self.training_names_set = set(name.strip() for name in names)
         self._build_vocabulary(names)
         encoded_data = self.encode("".join(names))
         train, dev, test = self._create_splits(encoded_data)

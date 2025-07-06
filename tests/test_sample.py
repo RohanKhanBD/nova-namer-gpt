@@ -25,7 +25,7 @@ def sample_config(tmp_path):
 
 def test_NameGPTSample_init_wrong_config():
     with pytest.raises(AssertionError, match="Invalid sample config type."):
-        NameGPTSampler(sample_config=TrainConfig(), model_dir=None, model=None, save_samples=None)
+        NameGPTSampler(sample_config=TrainConfig(), model_dir=None, model=None, enforce_novelty=None, save_samples=None)
 
 
 def test_NameGPTSample_init_saved_model(temp_data_files, configs, sample_config):

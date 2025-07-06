@@ -169,6 +169,6 @@ def test_export_data(tmp_path, temp_names_file_valid):
     # check meta file contents
     with open(tmp_path / "meta.pkl", "rb") as f:
         meta = pickle.load(f)
-    assert all(key in meta for key in ["vocab_size", "itos", "stoi"])
+    assert all(key in meta for key in ["vocab_size", "itos", "stoi", "training_names"])
     assert meta["vocab_size"] > 0
 

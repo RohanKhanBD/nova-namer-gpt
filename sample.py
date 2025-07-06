@@ -20,56 +20,60 @@ Bavarian City Name GPT // inference script
 
 class NameGPTSampler:
 
-    # insert class method factories!!
-    
+    """ generate names from a live model (trainer) or a saved checkpoint (CLI) """
+
+    @classmethod
+    def for_training(cls, sample_config: SampleConfig, model_dir: str, model: GPT):
+        itos = cls._load_vocab(model_dir)
+        return cls(sample_config, model_dir=model_dir, model=model, itos=itos, save_samples=False)
+
+    @classmethod
+    def for_saved_model(cls, sample_config: SampleConfig, model_dir: str):
+        model = cls._load_model(model_dir, sample_config.device)
+        itos = cls._load_vocab(model_dir)
+        return cls(sample_config, model_dir=model_dir, model=model, itos=itos, save_samples=True)
+
     def __init__(
         self,
         sample_config: SampleConfig,
-        model_path=None,
-        model=None,
-        data_dir=None,
+        model_dir: str,
+        model: GPT,
+        itos: Dict,
+        save_samples: bool,
     ):
         assert isinstance(sample_config, SampleConfig), "Invalid sample config type."
         self.config = sample_config
-        # received from main() as default or command-line argument
-        self.model_path = model_path
-        # if device not as argument from training, take from sample config
+        self.model_dir = model_dir
         self.device = sample_config.device if torch.backends.mps.is_available() else "cpu"
-        # determine mode: after_training (with model+itos) vs from_file
-        self.is_after_training = model is not None and data_dir is not None
-        # case 1: sample_after_train -> print some samples after each training run
-        if self.is_after_training:
-            self.model = model
-            self.itos = self._load_vocab(data_dir)
-        # case 2: sample from saved model -> infer from loaded model and saves samples as .txt
-        else:
-            # Load from file (standalone usage)
-            self.model, self.itos = self._load_model()
+        self.model = model
+        self.itos: Dict = itos
+        self.save_samples: bool = save_samples
 
-    def _load_vocab(self, data_dir: str) -> Dict:
-        """ only used in mode: sample_after_train; load vocab from data dir meta.pkl directly """
+    @staticmethod
+    def _load_vocab(model_dir: str) -> Dict:
+        """ used in both sample_after_train and inference mode """
+        # load config.json in dir of saved model
+        with open(os.path.join(model_dir, "config.json"), "r") as f:
+            saved_config = json.load(f)
+        # get in there location of data_dir, the reference to the meta.pkl containing vocab
+        data_dir = saved_config["train_config"]["data_dir"]
         with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
             meta = pickle.load(f)
         return meta["itos"]
 
-    def _load_model(self) -> Tuple[GPT, Dict]:
-        """load saved model and metadata"""
-        # load model config from JSON
-        config_path = os.path.dirname(self.model_path)
-        with open(os.path.join(config_path, "config.json"), "r") as f:
+    @staticmethod
+    def _load_model(model_dir: str, device) -> Tuple[GPT, Dict]:
+        """ load saved model and metadata """
+        with open(os.path.join(model_dir, "config.json"), "r") as f:
             saved_config = json.load(f)
-        # create model config
+        model_filename = saved_config["train_config"]["model_filename"]
+        model_path = os.path.join(model_dir, model_filename)
         model_config_dict = saved_config["model_config"]
         model_config = GPTconfig(**model_config_dict)
-        # Load vocabulary
-        data_dir = saved_config["train_config"]["data_dir"]
-        with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
-            meta = pickle.load(f)
-        # Init and load model
         model = GPT(model_config)
-        model.load_state_dict(torch.load(self.model_path, map_location=self.device))
-        model.to(self.device)
-        return model, meta["itos"]
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.to(device)
+        return model
 
     def _generate_single_name(self) -> str:
         """ generate a single name with current model; single name can have max_length chars """
@@ -103,7 +107,7 @@ class NameGPTSampler:
             name = self._generate_single_name()
             names.append(name)
             print(f"{i+1:2d}. {name}")
-        if not self.is_after_training:
+        if self.save_samples:
             self._save_samples(names)
         self.model.train()
         return names
@@ -116,8 +120,7 @@ class NameGPTSampler:
         - filename format: samples_YYYYMMDD_HHMMSS.txt
         - samples from "sample_after_train" are not saved, only printed
         """
-        model_dir = os.path.dirname(self.model_path)
-        samples_dir = os.path.join(model_dir, "samples")
+        samples_dir = os.path.join(self.model_dir, "samples")
         os.makedirs(samples_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = os.path.join(samples_dir, f"samples_{timestamp}.txt")
@@ -137,14 +140,12 @@ def main():
     parser.add_argument("--num_samples", type=int, default=50)
     parser.add_argument("--temperature", type=float, default=1.0)
     args = parser.parse_args()
-    # build the model path from the directory
-    model_path = os.path.join(args.out_dir, "model.pt")
     # create config and set the model path
     config = SampleConfig()
     config.num_samples = args.num_samples
     config.temperature = args.temperature
     # pass the model_path directly to the sampler
-    sampler = NameGPTSampler(config, model_path=model_path)
+    sampler = NameGPTSampler.for_saved_model(config, model_dir=args.out_dir)
     names = sampler.generate(config.num_samples)
     print(f"\nGenerated {len(names)} Bavarian city names.")
 

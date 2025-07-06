@@ -23,7 +23,9 @@ class TrainConfig:
     data_dir: str = "data"
     # save model after train
     saved_models_root: str = "saved_models"
+    # part of the dir name saved within saved_models
     model_name: str = "bavGPT"
+    model_filename: str = "model.pt"
     # seed for torch
     seed: int = 42
     # print samples after training

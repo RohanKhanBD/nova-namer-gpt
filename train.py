@@ -64,7 +64,7 @@ class NameGPTTrainer:
         if self.model_config.vocab_size and self.model_config.vocab_size != actual_vocab:
             print(f"Warning: Model config vocab_size ({self.model_config.vocab_size}) "
                   f"doesn't match data vocab_size ({actual_vocab}). Using data vocab_size.")
-        self.model_config.vocab_size = meta["vocab_size"]
+        self.model_config.vocab_size = actual_vocab
         print(f"Loaded data: train={len(splits["train"]):,} tok, dev={len(splits["dev"]):,} tok")
         print(f"Vocabulary size: {meta['vocab_size']}")
         return splits["train"], splits["dev"]
@@ -145,7 +145,7 @@ class NameGPTTrainer:
         save_dir = self.train_config.save_dir_current
         os.makedirs(save_dir, exist_ok=True)
         # inference only saving model -> only state_dict
-        torch.save(self.model.state_dict(), os.path.join(save_dir, "model.pt"))
+        torch.save(self.model.state_dict(), os.path.join(save_dir, self.train_config.model_filename))
         # save config separately from torch.save
         config_data = {
             "train_config": asdict(self.train_config),
@@ -168,12 +168,11 @@ class NameGPTTrainer:
 
     def _sample_after_train(self) -> None:
         """always print some samples after training"""
-        print(f"\nGenerating {self.train_config.num_samples} sample names:")
         # create sampler with current model using same device as training
-        sampler = NameGPTSampler(
+        sampler = NameGPTSampler.for_training(
             sample_config=SampleConfig(device=self.train_config.device),
+            model_dir=self.model_save_dir,
             model=self.model,
-            data_dir=self.train_config.data_dir,
         )
         sampler.generate(self.train_config.num_samples)
 

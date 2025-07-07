@@ -50,41 +50,48 @@ class NameGPTSampler:
         self.model_dir = model_dir
         self.device = sample_config.device if torch.backends.mps.is_available() else "cpu"
         self.model = model
-        # load itos with same process for both entry points
-        self.itos: Dict = self._load_vocab(self.model_dir)
+        # load metadata once - vocab always, training_names only if needed
+        metadata = self._load_meta(self.model_dir, load_training_names=enforce_novelty)
+        self.itos: Dict = metadata["itos"]
+        # if needed load training_names as set & save at obj
+        self.training_names = set(metadata.get("training_names", ())) if enforce_novelty else set()
         self.enforce_novelty: bool = enforce_novelty
         self.save_samples: bool = save_samples
 
     @staticmethod
-    def _load_model(model_dir: str, device) -> Tuple[GPT, Dict]:
-        """ load saved model from checkpoint"""
+    def _load_meta(model_dir: str, load_training_names: bool) -> Dict:
+        """
+        - load needed metadata from config.json & meta.pkl depending on the case
+        - in case from_saved_model called one-time as helper before obj init
+        - in both cases called on init and metadata saved at object one time
+        """
         with open(os.path.join(model_dir, "config.json"), "r") as f:
-            saved_config = json.load(f)
-        model_filename = saved_config["train_config"]["model_filename"]
-        model_path = os.path.join(model_dir, model_filename)
-        model_config_dict = saved_config["model_config"]
-        model_config = GPTconfig(**model_config_dict)
-        model = GPT(model_config)
-        model.load_state_dict(torch.load(model_path, map_location=device))
-        model.to(device)
-        return model
+            config = json.load(f)
+        with open(os.path.join(config["train_config"]["data_dir"], "meta.pkl"), "rb") as f:
+            meta = pickle.load(f)
+        result = {"config": config, "itos": meta["itos"]}
+        if load_training_names:
+            result["training_names"] = meta["training_names"]
+        return result
 
     @staticmethod
-    def _load_vocab(model_dir: str) -> Dict:
-        """ used in both sample_after_train and inference mode """
-        # load config.json in dir of saved model
-        with open(os.path.join(model_dir, "config.json"), "r") as f:
-            saved_config = json.load(f)
-        # get in there location of data_dir, the reference to the meta.pkl containing vocab
-        data_dir = saved_config["train_config"]["data_dir"]
-        with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
-            meta = pickle.load(f)
-        return meta["itos"]
+    def _load_model(model_dir: str, device) -> Tuple[GPT, Dict]:
+        """ load saved model from checkpoint"""
+        metadata = NameGPTSampler._load_meta(model_dir, load_training_names=False)
+        #model_filename = metadata["train_config"]["model_filename"]
+        #model_config = GPTconfig(**metadata["config"]["model_config"])
+        cfg = metadata["config"]
+        model_filename = cfg["train_config"]["model_filename"]
+        model_config = GPTconfig(**cfg["model_config"])
+        model = GPT(model_config)
+        model.load_state_dict(torch.load(os.path.join(model_dir, model_filename), map_location=device))
+        model.to(device)
+        return model
 
     def _generate_single_name(self) -> str:
         """ generate a single name with current model; single name can have max_length chars """
         name = []
-        context = torch.zeros((1, 1), dtype=torch.long, device=self.device) # (B,T)
+        context = torch.zeros((1, 1), dtype=torch.long, device=self.device)  # (B,T)
         for _ in range(self.config.max_length):
             context_cut = context[:, -self.model.config.context_len:]
             logits, _ = self.model(context_cut)
@@ -98,15 +105,6 @@ class NameGPTSampler:
             name.append(self.itos[idx])
             context = torch.cat([context, torch.tensor([[idx]], device=self.device)], dim=1)
         return "".join(name)
-    
-    def _check_name(self, name: str) -> bool:
-        with open(os.path.join(self.model_dir, "config.json"), "r") as f:
-            saved_config = json.load(f)
-        # get in there location of data_dir, the reference to the meta.pkl containing vocab
-        data_dir = saved_config["train_config"]["data_dir"]
-        with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
-            meta = pickle.load(f)
-        return name in meta["training_names"]
 
     @torch.no_grad()
     def generate(self, num_samples: int) -> List[str]:
@@ -123,8 +121,8 @@ class NameGPTSampler:
             print("1to1 duplicates to training data are discarded.")
         while len(names) < num_samples:
             name = self._generate_single_name()
-            # check for duplicates
-            if self.enforce_novelty and self._check_name(name):
+            # check for duplicates; if duplicate discard, reset counter & jump to next iteration
+            if self.enforce_novelty and name in self.training_names:
                 duplicate_counter += 1
                 continue
             names.append(name)

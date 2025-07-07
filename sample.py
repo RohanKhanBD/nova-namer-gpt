@@ -56,6 +56,7 @@ class NameGPTSampler:
         self.training_names = set(metadata.get("training_names", ())) if enforce_novelty else set()
         self.enforce_novelty: bool = enforce_novelty
         self.save_samples: bool = save_samples
+        self.saved_samples_path: str = ""
 
     @staticmethod
     def _load_meta(model_dir: str, load_training_names: bool) -> Dict:
@@ -85,7 +86,7 @@ class NameGPTSampler:
         model.to(device)
         return model
 
-    def _generate_single_name(self) -> str:
+    def _gen_single_name(self) -> str:
         """ generate a single name with current model; single name can have max_length chars """
         name = []
         context = torch.zeros((1, 1), dtype=torch.long, device=self.device)  # (B,T)
@@ -117,7 +118,7 @@ class NameGPTSampler:
             duplicate_counter = 0
             print("1to1 duplicates to training data are discarded.")
         while len(names) < self.config.num_samples:
-            name = self._generate_single_name()
+            name = self._gen_single_name()
             # check for duplicates; if duplicate discard, reset counter & jump to next iteration
             if self.enforce_novelty and name in self.training_names:
                 duplicate_counter += 1
@@ -127,11 +128,12 @@ class NameGPTSampler:
         if self.enforce_novelty:
             print(f"A total of {duplicate_counter} duplicates were discarded.")
         if self.save_samples:
-            self._save_samples(names)
+            self.saved_samples_path = self._save_samples(names)
         self.model.train()
+        print(f"\nGenerated {len(names)} Bavarian city names.")
         return names
 
-    def _save_samples(self, samples: List[str]) -> None:
+    def _save_samples(self, samples: List[str]) -> str:
         """
         - save generated samples to a text file with sequential numbering and line breaks
         - filename format: samples_YYYYMMDD_HHMMSS.txt derived from config.py getter
@@ -144,6 +146,7 @@ class NameGPTSampler:
             for i, sample in enumerate(samples, 1):
                 f.write(f"{i}. {sample}\n")
         print(f"Samples saved to: {filepath}")
+        return filepath
 
 
 def main():
@@ -158,8 +161,7 @@ def main():
     )
     args = parser.parse_args()
     sampler = NameGPTSampler.from_saved_model(SampleConfig(), model_dir=args.out_dir)
-    names = sampler.generate()
-    print(f"\nGenerated {len(names)} Bavarian city names.")
+    sampler.generate()
 
 
 if __name__ == "__main__":

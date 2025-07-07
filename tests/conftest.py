@@ -16,7 +16,7 @@ def sample_cfg(tmp_path):
     return SampleConfig(
         device="cpu",
         num_samples=3,
-        max_length=10,
+        max_length=5,
         temperature=1.0,
         enforce_novelty=False,
         saved_samples_root=str(tmp_path),

@@ -49,7 +49,7 @@ class SampleConfig:
     device: str = "mps"
     num_samples: int = 50
     max_length: int = 50
-    temperature: float = 1.0
+    temperature: float = 1
     # discards 1to1 copies of training data values
     enforce_novelty: bool = True
     saved_samples_root: str = "saved_samples"

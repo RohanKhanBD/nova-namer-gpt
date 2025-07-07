@@ -120,7 +120,7 @@ class NameGPTSampler:
         # setup duplicate counter & inform user
         if self.enforce_novelty:
             duplicate_counter = 0
-            print("Duplicated to training data are not allowed.")
+            print("1to1 duplicates to training data are discarded.")
         while len(names) < num_samples:
             name = self._generate_single_name()
             # check for duplicates
@@ -152,13 +152,15 @@ class NameGPTSampler:
 
 
 def main():
-    """central entry point with command line arguments"""
-    if len(sys.argv) > 3:
-        print("Too many command line arguments. Only --outdir + value accepted.")
-        sys.exit(1)
+    """ central entry point with command line arguments """
     parser = argparse.ArgumentParser(description="Specify model_dir to sample from.")
     # demo path as default
-    parser.add_argument("--out_dir", default="saved_models/demo")
+    parser.add_argument(
+        "out_dir",
+        nargs="?",
+        default="saved_models/demo",
+        help="Path to saved model directory (default: saved_models/demo).",
+    )
     args = parser.parse_args()
     # pass the model_path directly to the sampler
     sample_config = SampleConfig()

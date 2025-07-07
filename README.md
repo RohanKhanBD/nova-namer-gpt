@@ -13,8 +13,8 @@ A lightweight character-level transformer model (6.35M parameters) for generatin
 
 Best model achieved:
 - **Training Loss**: 1.202 (NLL)
-- **Validation Loss**: 1.446 (NLL)
-- **Convergence**: 6,500 iterations
+- **Validation Loss**: 1.441 (NLL)
+- **Convergence**: 6000 iterations
 
 ## Sample examples
 Selected novel place names inferenced from the best performing model:
@@ -90,32 +90,11 @@ python sample.py
 # Generate 50 names (default)
 python sample.py
 
-# Generate more names
-python sample.py --num_samples 100
-
-# Adjust creativity (higher = more random)
-python sample.py --temperature 1.5
-
-# Combine options
-python sample.py --num_samples 20 --temperature 0.8
-```
 ### Advanced Usage
 
 ```bash
 # Use a specific model
-python sample.py --out_dir saved_models/your_model_directory
-
-# Generate with custom settings
-python sample.py --out_dir saved_models/demo --num_samples 200 --temperature 1.2
-```
-
-### Command Line Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--out_dir` | `saved_models/demo` | Directory containing model checkpoint |
-| `--num_samples` | `50` | Number of names to generate |
-| `--temperature` | `1.0` | Sampling temperature (0.1 = conservative, 2.0 = creative) |
+python sample.py saved_models/your_model_directory
 
 --- 
 

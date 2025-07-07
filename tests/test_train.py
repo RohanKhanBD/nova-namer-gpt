@@ -12,48 +12,39 @@ from io import StringIO
 import sys
 
 
-""" fixtures for train_config, model_config, test_train_data on conftest.py """
-
-
 def test_NameGPTTrainer_init_wrong_configs(train_cfg, model_cfg):
-    train_config, model_config = train_cfg, model_cfg
     with pytest.raises(AssertionError, match="Invalid train config type."):
-        NameGPTTrainer(train_config=DataConfig(), model_config=model_config)
+        NameGPTTrainer(train_config=DataConfig(), model_config=model_cfg)
     with pytest.raises(AssertionError, match="Invalid model config type."):
-        NameGPTTrainer(train_config=train_config, model_config=DataConfig())
+        NameGPTTrainer(train_config=train_cfg, model_config=DataConfig())
 
 
 def test_NameGPTTrainer_init(train_cfg, model_cfg):
-    trainer = NameGPTTrainer(train_cfg, model_cfg)
-    assert isinstance(trainer.train_data, torch.Tensor)
-    assert isinstance(trainer.dev_data, torch.Tensor)
-    assert hasattr(trainer.model, "_parameters")
-    assert isinstance(trainer.model.transformer, nn.ModuleDict)
+    t = NameGPTTrainer(train_cfg, model_cfg)
+    assert isinstance(t.train_data, torch.Tensor) and isinstance(t.dev_data, torch.Tensor)
+    assert hasattr(t.model, "_parameters") and isinstance(t.model.transformer, nn.ModuleDict)
 
 
 def test_get_device_fallback(train_cfg, model_cfg, monkeypatch):
     # use monkeypatch.setattr to modify the function
     monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
-    train_config = train_cfg
-    train_config.device = "cuda"
-    t = NameGPTTrainer(train_config, model_cfg)
+    train_cfg.device = "cuda"
+    t = NameGPTTrainer(train_cfg, model_cfg)
     assert t.device == "cpu"
 
 
 def test_load_data_invalid_bin_file_path(train_cfg, model_cfg):
+    train_cfg.data_dir = "invalid_file_path"
     with pytest.raises(AssertionError, match=".bin file not found."):
-        train_config, model_config = train_cfg, model_cfg
-        train_config.data_dir = "invalid_file_path"
-        NameGPTTrainer(train_config, model_config)
+        NameGPTTrainer(train_cfg, model_cfg)
 
 
 def test_load_data_missing_meta_file(train_cfg, model_cfg, mock_train_data):
     # remove the meta.pkl file from the temporary directory
     os.remove(mock_train_data / "meta.pkl")
-    train_config, model_config = train_cfg, model_cfg
-    train_config.data_dir = str(mock_train_data)
+    train_cfg.data_dir = str(mock_train_data)
     with pytest.raises(AssertionError, match="meta.pkl file not found"):
-        NameGPTTrainer(train_config, model_config)
+        NameGPTTrainer(train_cfg, model_cfg)
 
 
 def test_load_data_vocab_size(train_cfg, model_cfg):
@@ -74,8 +65,7 @@ def test_get_batch(train_cfg, model_cfg):
     for data in (t.train_data, t.dev_data):
         x, y = t._get_batch(data)
         B, C = train_cfg.batch_size, model_cfg.context_len
-        assert x.shape == (B, C)
-        assert y.shape == (B, C)
+        assert x.shape == (B, C) and y.shape == (B, C)
         # y should equal x shifted left by one (for the first C-1 tokens)
         #    i.e.  x[:,1:] == y[:,:-1]
         assert torch.equal(x[:, 1:], y[:, :-1])
@@ -89,8 +79,7 @@ def test_estimate_loss(train_cfg, model_cfg):
     # switch model into eval mode, to check if _estimate_loss switches is back into train
     t.model.eval()
     losses = t._estimate_loss()
-    assert t.model.training
-    assert isinstance(losses, Dict) and len(losses) == 2
+    assert t.model.training and isinstance(losses, Dict) and len(losses) == 2
     # defaul avg nlll at vocab_size=4 equals -1.38; add tolerance
     tolerance = 0.1
     for split in ["train", "dev"]:
@@ -118,15 +107,13 @@ def test_save_checkpoint_model(train_cfg, model_cfg):
     # Compare state dicts directly
     original_state = {k: v.cpu() for k, v in t.model.state_dict().items()}
     loaded_state = {k: v.cpu() for k, v in m.state_dict().items()}
-    for key in original_state:
-        assert torch.equal(original_state[key], loaded_state[key])
+    assert all(torch.equal(original_state[k], loaded_state[k]) for k in original_state)
 
 
 def test_save_checkpoint_metadata(train_cfg, model_cfg):
     t = NameGPTTrainer(train_cfg, model_cfg)
     t.train_model()
-    json_path = os.path.join(t.model_save_dir, "config.json")
-    with open(json_path, mode="r") as f:
+    with open(os.path.join(t.model_save_dir, "config.json"), mode="r") as f:
         saved_config = json.load(f)
     assert saved_config["model_config"]["ffw_widen"] == 4
     assert len(saved_config["training_results"]["detailed_training_results"]) > 0
@@ -140,8 +127,7 @@ def test_sample_after_train(train_cfg, model_cfg):
     t.train_model()
     sys.stdout = sys.__stdout__
     output = captured_output.getvalue()
-    assert "1." in output
-    assert "2." in output
+    assert "1." in output and "2." in output
 
 
 def test_train_and_create_save_dir(train_cfg):

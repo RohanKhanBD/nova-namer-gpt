@@ -4,8 +4,6 @@ import torch.nn as nn
 import pytest
 from config import TrainConfig
 
-""" fixtures for model_config, tensors on conftest.py """
-
 
 def test_GPT_init_validations():
     with pytest.raises(AssertionError, match="Invalid config type."):

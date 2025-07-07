@@ -8,9 +8,6 @@ import numpy as np
 import pickle
 
 
-""" fixtures for test_sample.py """
-
-
 @pytest.fixture
 def sample_cfg(tmp_path):
     return SampleConfig(
@@ -23,7 +20,53 @@ def sample_cfg(tmp_path):
     )
 
 
-""" fixtures for test_train.py """
+@pytest.fixture
+def train_cfg(mock_train_data, tmp_path):
+    return TrainConfig(
+        batch_size=2,
+        learning_rate=3e-4,
+        train_iter=2,
+        eval_iter=5,
+        eval_interval=500,
+        device="cpu",
+        data_dir=str(mock_train_data),
+        saved_models_root=str(tmp_path),
+        model_name="test_bavGPT",
+        model_filename="model.pt",
+        seed=42,
+        num_samples=2,
+    )
+
+
+@pytest.fixture
+def model_cfg():
+    return GPTconfig(
+        context_len=4,
+        vocab_size=10,
+        n_embd=8,
+        n_head=2,
+        n_layer=2,
+        dropout=0.0,  # Set to 0 for deterministic tests
+        ffw_widen=4,
+        a_bias=True,
+        ffw_bias=True,
+        lm_head_bias=False,
+    )
+
+
+@pytest.fixture
+def data_cfg(mock_names_file_valid, tmp_path):
+    cfg = DataConfig(
+        input_file=mock_names_file_valid,
+        output_dir=tmp_path,
+        seed=42,
+        min_name_length=3,
+        max_name_length=50,
+        train_size=0.8,
+        dev_size=0.1,
+        test_size=0.1,
+    )
+    return cfg
 
 
 @pytest.fixture
@@ -50,43 +93,6 @@ def mock_train_data(tmp_path):
 
 
 @pytest.fixture
-def train_cfg(mock_train_data, tmp_path):
-    return TrainConfig(
-        batch_size=2,
-        learning_rate=3e-4,
-        train_iter=2,
-        eval_iter=5,
-        eval_interval=500,
-        device="cpu",
-        data_dir=str(mock_train_data),
-        saved_models_root=str(tmp_path),
-        model_name="test_bavGPT",
-        model_filename="model.pt",
-        seed=42,
-        num_samples=2,
-    )
-
-
-""" fixtures for test_model.py """
-
-
-@pytest.fixture
-def model_cfg():
-    return GPTconfig(
-        context_len=4,
-        vocab_size=10,
-        n_embd=8,
-        n_head=2,
-        n_layer=2,
-        dropout=0.0,  # Set to 0 for deterministic tests
-        ffw_widen=4,
-        a_bias=True,
-        ffw_bias=True,
-        lm_head_bias=False,
-    )
-
-
-@pytest.fixture
 def min_idx_tensor():
     return torch.stack((torch.arange(0, 4), torch.arange(4, 8)))
 
@@ -94,24 +100,6 @@ def min_idx_tensor():
 @pytest.fixture
 def min_targets_tensor():
     return torch.stack((torch.arange(1, 5), torch.arange(5, 9)))
-
-
-""" fixtures for test_prepare_data.py """
-
-
-@pytest.fixture
-def data_cfg(mock_names_file_valid, tmp_path):
-    cfg = DataConfig(
-        input_file=mock_names_file_valid,
-        output_dir=tmp_path,
-        seed=42,
-        min_name_length=3,
-        max_name_length=50,
-        train_size=0.8,
-        dev_size=0.1,
-        test_size=0.1,
-    )
-    return cfg
 
 
 @pytest.fixture

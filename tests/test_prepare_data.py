@@ -4,8 +4,6 @@ import pytest
 import numpy as np
 import pickle
 
-""" fixtures for data_config with tmp_path, mock names.txt, vocab cases on conftest.py """
-
 
 def test_NameProcessor_init_invalid_config():
     """ check for error when init NameProcessor with wrong config object """

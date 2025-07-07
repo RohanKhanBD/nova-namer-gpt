@@ -1,43 +1,53 @@
 import pytest
-import os
 import torch
 from config import SampleConfig, TrainConfig
 from sample import NameGPTSampler
 from train import NameGPTTrainer
-from test_train import temp_data_files, configs
 
 
-"""
-- configs from test_train is ready to use pytest fixture with mock train_config and model_config
-- temp_data_files is ready to use pytest fixture with mock data .bin and metadata.pkl files
-"""
+""" fixtures for sample_config, train_config, model_config, test_train_data on conftest.py """
 
 
-@pytest.fixture
-def sample_config(tmp_path):
-    return SampleConfig(
-        device="cpu",
-        num_samples=3,
-        max_length=10,
-        temperature=1.0,
-    )
-
-
-def test_NameGPTSample_init_wrong_config():
+def test_NameGPTSampler_init_wrong_config():
     with pytest.raises(AssertionError, match="Invalid sample config type."):
         NameGPTSampler(sample_config=TrainConfig(), model_dir=None, model=None, enforce_novelty=None, save_samples=None)
 
 
-def test_NameGPTSample_init_saved_model(temp_data_files, configs, sample_config):
-    """ test only init from saved model; _sample_after_train way already tested in test_train.py"""
-    train_config, model_config = configs
-    train_config.data_dir = str(temp_data_files)
-    t = NameGPTTrainer(train_config, model_config)
+def test_NameGPTSampler_from_training_init(train_cfg, model_cfg, sample_cfg):
+    t = NameGPTTrainer(train_cfg, model_cfg)
     t.train_model()
-    # take path to which the model was saved to by NameGPTTrainer
-    #model_dir = os.path.join(t.model_save_dir, "model.pt")
-    s = NameGPTSampler.from_saved_model(sample_config, t.model_save_dir)
+    sample_config = sample_cfg
+    sample_config.enforce_novelty = True
+    s = NameGPTSampler.from_training(sample_config, t.model_save_dir, t.model)
+    # called via from_training, cls method must setup obj with certain attributes
+    assert not s.enforce_novelty
+    assert not s.save_samples
+    assert s.training_names == set()
+
+
+def test_NameGPTSampler_from_saved_model_init(train_cfg, model_cfg, sample_cfg):
+    t = NameGPTTrainer(train_cfg, model_cfg)
+    t.train_model()
+    sample_config = sample_cfg
+    sample_config.enforce_novelty = True
+    s = NameGPTSampler.from_saved_model(sample_cfg, t.model_save_dir)
+    assert s.enforce_novelty
+    assert s.save_samples
+    # check if weights are identical in models saved at trainer & sampler
     assert all(torch.equal(p0, p1) for p0, p1 in zip(t.model.state_dict().values(), s.model.state_dict().values()))
 
 
+def test_NameGPTSampler_load_meta(train_cfg, model_cfg, sample_cfg, mock_train_data):
+    t = NameGPTTrainer(train_cfg, model_cfg)
+    t.train_model()
+    s = NameGPTSampler.from_training(sample_cfg, t.model_save_dir, t.model)
+    pass
 
+
+
+
+def test_train_and_create_save_dir(sample_cfg):
+    """ dir name created in config property depending on time """
+    new_file = sample_cfg.save_sample_filename
+    assert new_file.startswith("samples_")
+    assert new_file.endswith(".txt")

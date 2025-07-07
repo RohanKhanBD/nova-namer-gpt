@@ -4,31 +4,7 @@ import torch.nn as nn
 import pytest
 from config import TrainConfig
 
-
-@pytest.fixture
-def min_config():
-    return GPTconfig(
-        context_len=4,
-        vocab_size=10,
-        n_embd=8,
-        n_head=2,
-        n_layer=2,
-        dropout=0.0,  # Set to 0 for deterministic tests
-        ffw_widen=4,  
-        a_bias=True,
-        ffw_bias=True,  
-        lm_head_bias=False,
-    )
-
-
-@pytest.fixture
-def min_idx_tensor():
-    return torch.stack((torch.arange(0, 4), torch.arange(4, 8)))
-
-
-@pytest.fixture
-def min_targets_tensor():
-    return torch.stack((torch.arange(1, 5), torch.arange(5, 9)))
+""" fixtures for model_config, tensors on conftest.py """
 
 
 def test_GPT_init_validations():
@@ -44,8 +20,8 @@ def test_GPT_init_validations():
         GPT(GPTconfig(vocab_size=0))
 
 
-def test_GPT_init(min_config):
-    m = GPT(min_config, init_weights=False)
+def test_GPT_init(model_cfg):
+    m = GPT(model_cfg, init_weights=False)
     assert isinstance(m.config, GPTconfig)
     assert hasattr(m, "_parameters")
     assert isinstance(m.transformer, nn.ModuleDict)
@@ -58,17 +34,17 @@ def test_GPT_init_num_params():
     assert m.get_num_params() == 6334208
 
 
-def test_GPT_forward_T_greater_context_len(min_config):
+def test_GPT_forward_T_greater_context_len(model_cfg):
     """ T dim of input idx may not be greater than context_len"""
     with pytest.raises(AssertionError):
-        m = GPT(min_config)
+        m = GPT(model_cfg)
         idx = torch.zeros(2, 5, dtype=torch.long)
         m(idx)
 
 
-def test_GPT_forward_train_base(min_config, min_idx_tensor, min_targets_tensor):
+def test_GPT_forward_train_base(model_cfg, min_idx_tensor, min_targets_tensor):
     """ when training with targets, logits shape gets flattened to (B*T, C) for loss calculation """
-    m = GPT(min_config)
+    m = GPT(model_cfg)
     B_idx, T_idx = min_idx_tensor.shape
     logits, loss = m(min_idx_tensor, min_targets_tensor)
     B_l, T_l, C_l = logits.shape
@@ -81,9 +57,9 @@ def test_GPT_forward_train_base(min_config, min_idx_tensor, min_targets_tensor):
     assert loss.item() > 0
 
 
-def test_GPT_forward_infer_base(min_config, min_idx_tensor):
+def test_GPT_forward_infer_base(model_cfg, min_idx_tensor):
     """ when infering with idx input shape (B,T) logits shape must be (B,T,C) C:vocab_size"""
-    m = GPT(min_config)
+    m = GPT(model_cfg)
     B_idx, T_idx = min_idx_tensor.shape
     logits, loss = m(min_idx_tensor)
     B_l, T_l, C_l = logits.shape
@@ -94,16 +70,16 @@ def test_GPT_forward_infer_base(min_config, min_idx_tensor):
     assert loss is None
 
 
-def test_MultiHeadAttention(min_config):
+def test_MultiHeadAttention(model_cfg):
     batch_size = 2
-    mha = MultiHeadAttention(min_config)
-    x = torch.randn(batch_size, min_config.context_len, min_config.n_embd)
+    mha = MultiHeadAttention(model_cfg)
+    x = torch.randn(batch_size, model_cfg.context_len, model_cfg.n_embd)
     out = mha(x)
     assert out.shape == x.shape
 
 
-def test_MultiHeadAttention_qvc_projection(min_config):
-    mha = MultiHeadAttention(min_config)
+def test_MultiHeadAttention_qvc_projection(model_cfg):
+    mha = MultiHeadAttention(model_cfg)
     B, T, C = 2, 4, 8
     x = torch.randn(B, T, C)
     qkv_out = mha.qkv(x)
@@ -115,10 +91,10 @@ def test_MultiHeadAttention_qvc_projection(min_config):
     assert q.shape == (B, mha.n_head, T, mha.head_size)
 
 
-def test_attention_mask_causal(min_config):
-    mha = MultiHeadAttention(min_config)
+def test_attention_mask_causal(model_cfg):
+    mha = MultiHeadAttention(model_cfg)
     B, T = 1, 4
-    x = torch.ones(B, T, min_config.n_embd)
+    x = torch.ones(B, T, model_cfg.n_embd)
     assert torch.all(mha.tril[:T, :T] == torch.tril(torch.ones(T, T)))
     out = mha(x)
     assert out.shape == x.shape
@@ -132,8 +108,8 @@ def test_weight_tying():
     assert m.lm_head.weight.shape == (20, 16)
 
 
-def test_positional_encoding_device_placement(min_config):
-    m = GPT(min_config)
+def test_positional_encoding_device_placement(model_cfg):
+    m = GPT(model_cfg)
     # test CPU
     idx_cpu = torch.randint(0, 10, (2, 4))
     logits_cpu, _ = m(idx_cpu)
@@ -141,22 +117,22 @@ def test_positional_encoding_device_placement(min_config):
     # test GPU if available
     if torch.backends.mps.is_available():
         device = torch.device("mps")
-        m_mps = GPT(min_config).to(device)
+        m_mps = GPT(model_cfg).to(device)
         idx_mps = idx_cpu.to(device)
         logits_mps, _ = m_mps(idx_mps)
         assert logits_mps.device == idx_mps.device
 
 
-def test_ffw_widening_factor(min_config):
-    ffw = Ffw(min_config)
-    assert ffw.c_fc.out_features == min_config.n_embd * min_config.ffw_widen
-    assert ffw.proj.in_features == min_config.n_embd * min_config.ffw_widen
-    assert ffw.proj.out_features == min_config.n_embd
+def test_ffw_widening_factor(model_cfg):
+    ffw = Ffw(model_cfg)
+    assert ffw.c_fc.out_features == model_cfg.n_embd * model_cfg.ffw_widen
+    assert ffw.proj.in_features == model_cfg.n_embd * model_cfg.ffw_widen
+    assert ffw.proj.out_features == model_cfg.n_embd
 
 
-def test_gradient_flow(min_config, min_idx_tensor, min_targets_tensor):
+def test_gradient_flow(model_cfg, min_idx_tensor, min_targets_tensor):
     """ check gradients flow through key parameters """
-    m = GPT(min_config)
+    m = GPT(model_cfg)
     _, loss = m(min_idx_tensor, min_targets_tensor)
     loss.backward()
     assert m.transformer.wte.weight.grad is not None
@@ -167,8 +143,8 @@ def test_gradient_flow(min_config, min_idx_tensor, min_targets_tensor):
         assert block.multi_head_sa.proj.weight.grad is not None
 
 
-def test_transformer_block_residual_connections(min_config):
-    block = TransformerBlock(min_config)
+def test_transformer_block_residual_connections(model_cfg):
+    block = TransformerBlock(model_cfg)
     x = torch.randn(2, 4, 8)
     x_copy = x.clone()
     out = block(x)

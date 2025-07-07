@@ -1,5 +1,4 @@
 import os
-import sys
 import torch
 import torch.nn.functional as F
 import pickle
@@ -78,8 +77,6 @@ class NameGPTSampler:
     def _load_model(model_dir: str, device) -> Tuple[GPT, Dict]:
         """ load saved model from checkpoint"""
         metadata = NameGPTSampler._load_meta(model_dir, load_training_names=False)
-        #model_filename = metadata["train_config"]["model_filename"]
-        #model_config = GPTconfig(**metadata["config"]["model_config"])
         cfg = metadata["config"]
         model_filename = cfg["train_config"]["model_filename"]
         model_config = GPTconfig(**cfg["model_config"])
@@ -107,19 +104,19 @@ class NameGPTSampler:
         return "".join(name)
 
     @torch.no_grad()
-    def generate(self, num_samples: int) -> List[str]:
+    def generate(self) -> List[str]:
         """
         - sample n amount of names and print results
         - when sampling from checkpoint: additionally save to file
         """
-        print(f"\nGenerating {num_samples} sample names:")
+        print(f"\nGenerating {self.config.num_samples} sample names:")
         self.model.eval()
         names = []
         # setup duplicate counter & inform user
         if self.enforce_novelty:
             duplicate_counter = 0
             print("1to1 duplicates to training data are discarded.")
-        while len(names) < num_samples:
+        while len(names) < self.config.num_samples:
             name = self._generate_single_name()
             # check for duplicates; if duplicate discard, reset counter & jump to next iteration
             if self.enforce_novelty and name in self.training_names:
@@ -160,10 +157,8 @@ def main():
         help="Path to saved model directory (default: saved_models/demo).",
     )
     args = parser.parse_args()
-    # pass the model_path directly to the sampler
-    sample_config = SampleConfig()
-    sampler = NameGPTSampler.from_saved_model(sample_config, model_dir=args.out_dir)
-    names = sampler.generate(sample_config.num_samples)
+    sampler = NameGPTSampler.from_saved_model(SampleConfig(), model_dir=args.out_dir)
+    names = sampler.generate()
     print(f"\nGenerated {len(names)} Bavarian city names.")
 
 

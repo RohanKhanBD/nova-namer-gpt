@@ -170,11 +170,14 @@ class NameGPTTrainer:
         """always print some samples after training"""
         # create sampler with current model using same device as training
         sampler = NameGPTSampler.from_training(
-            sample_config=SampleConfig(device=self.train_config.device),
+            sample_config=SampleConfig(
+                device=self.train_config.device,
+                num_samples=self.train_config.num_samples
+            ),
             model_dir=self.model_save_dir,
             model=self.model,
         )
-        sampler.generate(self.train_config.num_samples)
+        sampler.generate()
 
 
 def main():

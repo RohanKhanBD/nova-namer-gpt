@@ -1,3 +1,17 @@
+"""
+NovaNamerGPT Configuration Classes
+
+This module contains all configuration dataclasses for the NovaNamerGPT system but for the NN.
+Provides clean separation of concerns for training, sampling, and data processing
+configurations with sensible defaults and automatic path generation.
+The dataclass for all NN hyperparameters is with the model at model.py.
+
+Classes:
+    TrainConfig: Training hyperparameters and system configuration
+    SampleConfig: Text generation and sampling parameters
+    DataConfig: Data processing and dataset preparation settings
+"""
+
 from dataclasses import dataclass
 import os
 import datetime
@@ -5,23 +19,32 @@ import datetime
 
 @dataclass
 class TrainConfig:
-    """training configuration"""
+    """
+    training configuration for model training pipeline
+    - controls training hyperparameters and system settings
+    - provides automatic timestamped model directory creation
+    - handles device selection and experiment tracking
+    """
 
+    # training hyperparameters
     batch_size: int = 64
-    learning_rate: float = 3e-4
+    learning_rate: float = 3e-4  # standard gpt learning rate
     train_iter: int = 1
-    eval_iter: int = 150
-    eval_interval: int = 500
-    device: str = "mps"
-    # dir with bin / meta files for training
-    data_dir: str = "data"
-    # save model after train
+    eval_iter: int = 150  # batches for loss estimation
+    eval_interval: int = 500  # training steps between evaluations
+
+    # system configuration
+    device: str = "mps"  # "mps" for apple silicon, "cuda" for nvidia, "cpu" fallback
+    seed: int = 42
+
+    # data and model paths
+    data_dir: str = "data"  # dir with processed binary files
     saved_models_root: str = "saved_models"
     model_name: str = "bavGPT"
-    model_filename: str = "model.pt"
-    seed: int = 42
-    # print samples after training
-    num_samples: int = 20
+    model_filename: str = "model.pt"  # state dict filename
+
+    # post-training settings
+    num_samples: int = 20  # samples to generate after training
 
     @property
     def save_dir_current(self) -> str:
@@ -32,17 +55,24 @@ class TrainConfig:
 @dataclass
 class SampleConfig:
     """
-    - sampling configuration
-    - samples derived from saved models are always saved as .txt in model dir
-    - enforce novelty only relevant and configurable at sampling from saved model
+    text generation and sampling configuration
+    - controls inference parameters and output quality
+    - manages sample file saving with timestamps
+    - handles novelty enforcement against training data
     """
 
+    # system configuration
     device: str = "mps"
+
+    # generation parameters
     num_samples: int = 50
-    max_length: int = 50
-    temperature: float = 1
-    # discards 1to1 copies of training data values
-    enforce_novelty: bool = True
+    max_length: int = 50  # maximum characters per sample
+    temperature: float = 1  # sampling temperature (higher = more creative) -> 1 = normal
+
+    # quality control
+    enforce_novelty: bool = True  # discard exact training data matches
+
+    # output management
     saved_samples_root: str = "saved_samples"
 
     @property

@@ -1,3 +1,18 @@
+"""
+NovaNamerGPT Transformer Architecture
+
+This module implements a character-level GPT transformer optimized for name generation.
+Features multi-head attention, feed-forward networks, and layer normalization with
+proper weight initialization following GPT-2 standards.
+
+Classes:
+    GPTconfig: Model architecture hyperparameters
+    MultiHeadAttention: Scaled dot-product attention with causal masking
+    Ffw: Feed-forward network with ReLU activation
+    TransformerBlock: Single transformer layer with attention and feed-forward
+    GPT: Complete transformer model with embeddings and language modeling head
+"""
+
 import math
 import torch
 import torch.nn as nn
@@ -9,96 +24,119 @@ from typing import Optional, Tuple
 @dataclass
 class GPTconfig:
     """
-    - configuration class for model architecture hyperparameters
-    - mandatory as input to instanciate core GTP class
-    - training & sampling config params in separate files in config dir
+    model architecture configuration for transformer
+    - defines layer dimensions and attention parameters
+    - controls dropout rates and bias settings
+    - sets context length and vocabulary size
     """
 
-    context_len: int = 64  # block_size
-    vocab_size: int = 61
-    n_embd: int = 256
-    n_head: int = 8
-    n_layer: int = 8
+    # model dimensions
+    context_len: int = 64  # maximum sequence length (block size)
+    vocab_size: int = 61  # character vocabulary size
+    n_embd: int = 256  # embedding dimension
+    n_head: int = 8  # number of attention heads
+    n_layer: int = 8  # number of transformer blocks
+
+    # regularization
     dropout: float = 0.2
-    ffw_widen: int = 4  # factor to widen linear layer in ffw module
-    a_bias: bool = True  # bias true for q, k, v, proj in attention layers
-    ffw_bias: bool = True  # bias true for lin layers in ffw modules;
-    lm_head_bias: bool = False
+
+    # feed-forward network
+    ffw_widen: int = 4  # expansion factor for ffn hidden layer
+
+    # bias settings for different components
+    a_bias: bool = True  # attention projection bias
+    ffw_bias: bool = True  # feed-forward layer bias
+    lm_head_bias: bool = False  # language modeling head bias
 
 
 class MultiHeadAttention(nn.Module):
-    """  """
+    """
+    multi-head scaled dot-product attention with causal masking
+    - computes attention weights for all heads in parallel
+    - applies triangular mask to prevent looking at future tokens
+    - includes dropout for regularization
+    """
 
     def __init__(self, config: GPTconfig):
         super().__init__()
         assert config.n_embd % config.n_head == 0, "Ratio n_embd / n_head must have no remainder."
         self.n_head = config.n_head
-        self.head_size: int = config.n_embd // config.n_head
-        # single layer for all heads; 3 is constant
+        self.head_size: int = config.n_embd // config.n_head # dimension per attention head
+        # single linear layer for all q, k, v projections (more efficient)
         self.qkv = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.a_bias)
-        # linear projection layer to blend all cat head outputs
+        # output projection to combine all heads
         self.proj = nn.Linear(config.n_embd, config.n_embd, bias=config.a_bias)
         self.dropout = nn.Dropout(config.dropout)
-        # helper matrix for triangular masking; all zero values above diagonal
+        # causal mask - lower triangular matrix prevents future token access
         self.register_buffer("tril", torch.tril(torch.ones(config.context_len, config.context_len)))
 
-    def forward(self, x) -> torch.Tensor:
-        B, T, C = x.shape
-        # permute qkv-dim to front to catch qkv in next step
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        B, T, C = x.shape  # batch, time, channels
+        # compute q, k, v for all heads simultaneously
         qkv = self.qkv(x).reshape(B, T, 3, self.n_head, self.head_size).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]  # B, nh, T, hs
-        att = (q @ torch.transpose(k, dim0=-1, dim1=-2)) * self.head_size**-0.5  # B,nh,T, T
-        # = attention weights
+        q, k, v = qkv[0], qkv[1], qkv[2]  # each is (B, n_head, T, head_size)
+        # scaled dot-product attention
+        att = (q @ torch.transpose(k, dim0=-1, dim1=-2)) * self.head_size**-0.5  # scale: sqrt(d_k)
+        # apply causal mask and softmax
         att = F.softmax(att.masked_fill(self.tril[:T, :T] == 0, float("-inf")), dim=-1)
-        # att @ v (=attended values): B,nh,T,hs
-        out = (self.dropout(att) @ v).transpose(1, 2).reshape(B, T, C)
+        # apply attention to values and reshape
+        out = (self.dropout(att) @ v).transpose(1, 2).reshape(B, T, C)  # (B, n_head, T, head_size)
         return self.dropout(self.proj(out))
 
 
 class Ffw(nn.Module):
     """
-    - mlp layer with relu non-linearity
-    - widened by tbd factor; dropout before returning output
-    - explicit layer naming to catch proj weights for weight init
+    feed-forward network with relu activation
+    - expands to wider hidden dimension then projects back
+    - includes dropout for regularization
+    - uses explicit layer naming for weight initialization
     """
 
     def __init__(self, config: GPTconfig):
         super().__init__()
-        self.c_fc = nn.Linear(config.n_embd, config.n_embd * config.ffw_widen, bias=config.ffw_bias)
+        hidden_dim = config.n_embd * config.ffw_widen  # expand by widening factor
+        self.c_fc = nn.Linear(config.n_embd, hidden_dim, bias=config.ffw_bias)  # expand
         self.relu = nn.ReLU()
-        self.proj = nn.Linear(config.n_embd * config.ffw_widen, config.n_embd, bias=config.ffw_bias)
+        self.proj = nn.Linear(hidden_dim, config.n_embd, bias=config.ffw_bias)  # project back
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.c_fc(x)
         x = self.relu(x)
         x = self.proj(x)
-        x = self.dropout(x)
-        return x
+        return self.dropout(x)
 
 
 class TransformerBlock(nn.Module):
     """
-    - communication in multi-head-attention, computation in ffw layers
-    - layernorm -> attention -> skip -> layernorm -> ffw -> skip
+    single transformer block with pre-layer normalization
+    - attention for communication between positions
+    - feed-forward for computation within positions
+    - residual connections around both sublayers
     """
 
     def __init__(self, config: GPTconfig):
         super().__init__()
         self.multi_head_sa = MultiHeadAttention(config)
         self.ffw = Ffw(config)
-        self.ln1 = nn.LayerNorm(config.n_embd)
-        self.ln2 = nn.LayerNorm(config.n_embd)
+        self.ln1 = nn.LayerNorm(config.n_embd)  # pre-attention norm
+        self.ln2 = nn.LayerNorm(config.n_embd)  # pre-ffn norm
 
-    def forward(self, x) -> torch.Tensor:
-        x = x + self.multi_head_sa((self.ln1(x)))
-        x = x + self.ffw(self.ln2(x))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # pre-norm architecture: norm -> sublayer -> residual
+        x = x + self.multi_head_sa((self.ln1(x)))  # attention with residual
+        x = x + self.ffw(self.ln2(x))  # feed-forward with residual
         return x
 
 
-# Core GPT logic setting up NN
 class GPT(nn.Module):
-    """central class setting up the NN; flag to deactivate _init_weights for testcases"""
+    """
+    complete gpt transformer model for character-level language modeling
+    - token and position embeddings
+    - stack of transformer blocks
+    - language modeling head with weight tying
+    - proper weight initialization following gpt-2 standards
+    """
 
     def __init__(self, config: GPTconfig, init_weights: bool = True):
         super().__init__()
@@ -110,69 +148,80 @@ class GPT(nn.Module):
         # embeddings & transformer blocks
         self.transformer = nn.ModuleDict(
             dict(
-                wte=nn.Embedding(config.vocab_size, config.n_embd),
-                wpe=nn.Embedding(config.context_len, config.n_embd),
+                wte=nn.Embedding(config.vocab_size, config.n_embd),  # token embeddings
+                wpe=nn.Embedding(config.context_len, config.n_embd),  # position embeddings
                 drop=nn.Dropout(config.dropout),
                 h=nn.ModuleList([TransformerBlock(config) for _ in range(config.n_layer)]),
-                ln_f=nn.LayerNorm(config.n_embd),
+                ln_f=nn.LayerNorm(config.n_embd),  # final layer norm
             )
         )
-        # output layer
+        # language modeling head
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=config.lm_head_bias)
-        # weight tying between token embedding and output projection
+        # weight tying - share parameters between token embedding and output projection
         self.transformer.wte.weight = self.lm_head.weight
-        # trigger weight init
+        # initialize weights if requested
         if init_weights:
             self.apply(self._init_weights)
 
     def forward(
         self, idx: torch.Tensor, targets: Optional[torch.Tensor] = None
     ) -> Tuple[torch.Tensor, Optional[torch.tensor]]:
+        """
+        forward pass through transformer
+        - if targets provided: returns logits and cross-entropy loss
+        - if no targets: returns logits for next token prediction only
+        """
         B, T = idx.shape
         assert T <= self.config.context_len, f"T: {T} exceeds context_len {self.config.context_len}"
+        # create position indices for current sequence
+        pos = torch.arange(T, dtype=torch.long, device=idx.device)
+        # token and position embeddings
         x = self.transformer.drop(
-            self.transformer.wte(idx) +
-            self.transformer.wpe(torch.arange(T, dtype=torch.long, device=idx.device))
+            self.transformer.wte(idx) + self.transformer.wpe(pos)
         )
-        # forward through hidden layers & layernorm
+        # forward through transformer blocks
         for block in self.transformer.h:
             x = block(x)
         x = self.transformer.ln_f(x)
-        # calc loss if targets are available; otherwise loss is None
+        # compute logits and loss
         if targets is not None:
+            # training mode - compute loss over all positions
             logits = self.lm_head(x)
             loss = F.cross_entropy(
                 logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1
             )
         else:
-            # inference: only forward the lm_head on the very last position
+            # inference mode - only compute logits for last position
             logits = self.lm_head(x[:, [-1], :])  # list [-1] to preserve the time dim
             loss = None
         return logits, loss
 
-    def _init_weights(self, module) -> None:
-        """standard initfor lin / embd layers; scaled residual init for projection layers"""
+    def _init_weights(self, module: nn.Module) -> None:
+        """
+        init weights following gpt-2 standards
+        - normal distribution for linear and embedding layers
+        - scaled initialization for residual projections
+        """
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            # init weights with small normal distribution (GPT-2 standard)
+            # standard init with small normal distribution
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if hasattr(module, "bias") and module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
-        # scaled init to residual projections
+        # scaled init for residual projections
         for name, param in self.named_parameters():
-            # catches both attention and ffw projections
-            if name.endswith("proj.weight"):
+            if name.endswith("proj.weight"):  # catches both attention and ffw projections
+                # scale by depth for proper gradient flow
                 torch.nn.init.normal_(
                     param, mean=0.0, std=0.02 / math.sqrt(2 * self.config.n_layer)
                 )
 
     def get_num_params(self, non_embedding=True):
         """
-        - return the number of parameters in the model.
-        - For non-embedding count (default), the pos embeddings get subtracted
-        - the token embeddings would too, except due to the parameter sharing these
-        params are actually used as weights in the final layer, so we include them
+        count total model parameters
+        - non_embedding=True excludes position embeddings from count
+        - token embeddings included due to weight tying with output layer
         """
         n_params = sum(p.numel() for p in self.parameters())
         if non_embedding:
-            n_params -= self.transformer.wpe.weight.numel()
+            n_params -= self.transformer.wpe.weight.numel()  # subtract position embeddings
         return n_params

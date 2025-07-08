@@ -84,19 +84,22 @@ class SampleConfig:
 @dataclass
 class DataConfig:
     """
-    - path to load in raw input data
-    - path to load processed datasets so
-    - other data processing config
+    data processing and dataset preparation configuration
+    - controls raw data ingestion and validation
+    - manages dataset splits and character filtering
+    - handles binary file output for efficient training
     """
 
-    # data processing
-    input_file: str = "data/names.txt"
-    output_dir: str = "data"
-    # seed for shuffling names
-    seed: int = 42
-    # name validation
-    min_name_length: int = 3
+    # input/output paths
+    input_file: str = "data/names.txt"  # raw text file, one item per line
+    output_dir: str = "data"  # processed binary files destination
+
+    # data processing parameters
+    seed: int = 42  # for reproducible shuffling
+    min_name_length: int = 3  # character length validation
     max_name_length: int = 50
+
+    # dataset split ratios (must sum to 1.0)
     train_size: float = 0.8
     dev_size: float = 0.1
     test_size: float = 0.1

@@ -5,8 +5,6 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
-""" Bavarian City Name GPT // core classes to setup transformer nn"""
-
 
 @dataclass
 class GPTconfig:
@@ -143,7 +141,9 @@ class GPT(nn.Module):
         # calc loss if targets are available; otherwise loss is None
         if targets is not None:
             logits = self.lm_head(x)
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+            loss = F.cross_entropy(
+                logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1
+            )
         else:
             # inference: only forward the lm_head on the very last position
             logits = self.lm_head(x[:, [-1], :])  # list [-1] to preserve the time dim

@@ -12,9 +12,6 @@ from sample import NameGPTSampler
 from typing import Tuple, Dict
 
 
-""" Bavarian City Name GPT // lightweight training scrip """
-
-
 class NameGPTTrainer:
 
     def __init__(self, train_config: TrainConfig, model_config: GPTconfig):
@@ -77,7 +74,9 @@ class NameGPTTrainer:
             (self.train_config.batch_size,),
         )
         x = torch.stack([split[t: t + self.model_config.context_len] for t in batch_borders])
-        y = torch.stack([split[t + 1: t + self.model_config.context_len + 1] for t in batch_borders])
+        y = torch.stack(
+            [split[t + 1: t + self.model_config.context_len + 1] for t in batch_borders]
+        )
         return x, y
 
     def train_model(self):
@@ -92,7 +91,10 @@ class NameGPTTrainer:
             # eval loss & print after certain amount of train steps
             if i % self.train_config.eval_interval == 0:
                 losses = self._estimate_loss()
-                result = f"loss after {i} iterations: train_loss {losses["train"]:.5f}; eval_loss {losses["dev"]:.5f}"
+                result = (
+                    f"loss after {i} iterations: train_loss {losses["train"]:.5f}; "
+                    f"eval_loss {losses["dev"]:.5f}"
+                )
                 self.training_results.append(result)
                 print(result)
 
@@ -145,7 +147,9 @@ class NameGPTTrainer:
         save_dir = self.train_config.save_dir_current
         os.makedirs(save_dir, exist_ok=True)
         # inference only saving model -> only state_dict
-        torch.save(self.model.state_dict(), os.path.join(save_dir, self.train_config.model_filename))
+        torch.save(
+            self.model.state_dict(), os.path.join(save_dir, self.train_config.model_filename)
+        )
         # save config separately from torch.save
         config_data = {
             "train_config": asdict(self.train_config),

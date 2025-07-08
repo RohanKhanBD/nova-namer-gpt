@@ -2,7 +2,7 @@
 
 A lightweight character-level transformer model (6.35M parameters) for generating authentic Bavarian city names. This GPT implementation learns from a unique dataset combining real Bavarian settlements and natural landmarks to create novel, culturally authentic toponyms.
 
-## 🎯 Key Features
+## 🎯 Key Feature
 
 - **Lightweight Architecture**: 6.35M parameter transformer optimized for character-level generation
 - **Fast Training**: ~24 minutes on Apple Silicon (M1/M2)

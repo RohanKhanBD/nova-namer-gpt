@@ -10,7 +10,6 @@ from typing import List, Dict, Tuple
 
 
 """
-Bavarian City Name GPT // inference script
 - sampling from saved models and sample after training
 - both options use NameGPTSampler class
 - setup params in config.py
@@ -82,7 +81,9 @@ class NameGPTSampler:
         model_filename = cfg["train_config"]["model_filename"]
         model_config = GPTconfig(**cfg["model_config"])
         model = GPT(model_config)
-        model.load_state_dict(torch.load(os.path.join(model_dir, model_filename), map_location=device))
+        model.load_state_dict(
+            torch.load(os.path.join(model_dir, model_filename), map_location=device)
+        )
         model.to(device)
         return model
 

@@ -1,12 +1,6 @@
 from dataclasses import dataclass
-import os, datetime
-
-"""
-Bavarian City Name GPT // config classes for:
-- training
-- sampling
-- data processing
-"""
+import os
+import datetime
 
 
 @dataclass
@@ -23,7 +17,6 @@ class TrainConfig:
     data_dir: str = "data"
     # save model after train
     saved_models_root: str = "saved_models"
-    # part of the dir name saved within saved_models
     model_name: str = "bavGPT"
     model_filename: str = "model.pt"
     seed: int = 42
@@ -73,10 +66,9 @@ class DataConfig:
     output_dir: str = "data"
     # seed for shuffling names
     seed: int = 42
-    # raw data validation
+    # name validation
     min_name_length: int = 3
     max_name_length: int = 50
-    # split sizes for train / dev; rest it test
     train_size: float = 0.8
     dev_size: float = 0.1
     test_size: float = 0.1

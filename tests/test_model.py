@@ -6,16 +6,16 @@ from config import TrainConfig
 
 
 def test_GPT_init_validations():
-    with pytest.raises(AssertionError, match="Invalid config type."):
-        GPT(TrainConfig())
-    with pytest.raises(AssertionError, match="Ratio n_embd / n_head must have no remainder."):
-        GPT(GPTconfig(n_head=3))
-    with pytest.raises(AssertionError, match="n_head must be positive"):
-        GPT(GPTconfig(n_head=0))
-    with pytest.raises(AssertionError, match="n_layer must be positive"):
-        GPT(GPTconfig(n_layer=0))
-    with pytest.raises(AssertionError, match="vocab_size must be positive"):
-        GPT(GPTconfig(vocab_size=0))
+    validation_cases = [
+        (TrainConfig(), "Invalid config type."),
+        (GPTconfig(n_head=3), "Ratio n_embd / n_head must have no remainder."),
+        (GPTconfig(n_head=0), "n_head must be positive"),
+        (GPTconfig(n_layer=0), "n_layer must be positive"),
+        (GPTconfig(vocab_size=0), "vocab_size must be positive"),
+    ]
+    for config, error_msg in validation_cases:
+        with pytest.raises(AssertionError, match=error_msg):
+            GPT(config)
 
 
 def test_GPT_init(model_cfg):
@@ -27,8 +27,7 @@ def test_GPT_init(model_cfg):
 
 
 def test_GPT_init_num_params():
-    config = GPTconfig()
-    m = GPT(config, init_weights=False)
+    m = GPT(GPTconfig(), init_weights=False)
     assert m.get_num_params() == 6334208
 
 
@@ -47,12 +46,8 @@ def test_GPT_forward_train_base(model_cfg, min_idx_tensor, min_targets_tensor):
     logits, loss = m(min_idx_tensor, min_targets_tensor)
     B_l, T_l, C_l = logits.shape
     # flattened out into (B*T, C) only for cross_entropy calc; returned as (B,T,C)
-    assert B_l == B_idx
-    assert T_l == T_idx
-    assert C_l == m.config.vocab_size
-    assert isinstance(loss, torch.Tensor)
-    assert isinstance(loss.item(), float)
-    assert loss.item() > 0
+    assert (B_l, T_l, C_l) == (B_idx, T_idx, m.config.vocab_size)
+    assert isinstance(loss, torch.Tensor) and isinstance(loss.item(), float) and loss.item() > 0
 
 
 def test_GPT_forward_infer_base(model_cfg, min_idx_tensor):
@@ -61,10 +56,8 @@ def test_GPT_forward_infer_base(model_cfg, min_idx_tensor):
     B_idx, T_idx = min_idx_tensor.shape
     logits, loss = m(min_idx_tensor)
     B_l, T_l, C_l = logits.shape
-    assert B_idx == B_l == 2
     # only last T is taken, but dim preserved with 1 for downstream services
-    assert T_l == 1
-    assert C_l == m.config.vocab_size
+    assert (B_l, T_l, C_l) == (B_idx, 1, m.config.vocab_size)
     assert loss is None
 
 
@@ -72,8 +65,7 @@ def test_MultiHeadAttention(model_cfg):
     batch_size = 2
     mha = MultiHeadAttention(model_cfg)
     x = torch.randn(batch_size, model_cfg.context_len, model_cfg.n_embd)
-    out = mha(x)
-    assert out.shape == x.shape
+    assert mha(x).shape == x.shape
 
 
 def test_MultiHeadAttention_qvc_projection(model_cfg):
@@ -85,7 +77,7 @@ def test_MultiHeadAttention_qvc_projection(model_cfg):
     # test reshape & permute
     qkv = qkv_out.reshape(B, T, 3, mha.n_head, mha.head_size).permute(2, 0, 3, 1, 4)
     assert qkv.shape == (3, B, mha.n_head, T, mha.head_size)
-    q, k, v = qkv[0], qkv[1], qkv[2]
+    q, _, _ = qkv[0], qkv[1], qkv[2]
     assert q.shape == (B, mha.n_head, T, mha.head_size)
 
 
@@ -94,8 +86,7 @@ def test_attention_mask_causal(model_cfg):
     B, T = 1, 4
     x = torch.ones(B, T, model_cfg.n_embd)
     assert torch.all(mha.tril[:T, :T] == torch.tril(torch.ones(T, T)))
-    out = mha(x)
-    assert out.shape == x.shape
+    assert mha(x).shape == x.shape
 
 
 def test_weight_tying():
@@ -133,9 +124,12 @@ def test_gradient_flow(model_cfg, min_idx_tensor, min_targets_tensor):
     m = GPT(model_cfg)
     _, loss = m(min_idx_tensor, min_targets_tensor)
     loss.backward()
-    assert m.transformer.wte.weight.grad is not None
-    assert m.transformer.wpe.weight.grad is not None
-    assert m.lm_head.weight.grad is not None
+    grad_params = [
+            m.transformer.wte.weight,
+            m.transformer.wpe.weight,
+            m.lm_head.weight
+        ]
+    assert all(p.grad is not None for p in grad_params)
     for block in m.transformer.h:
         assert block.multi_head_sa.qkv.weight.grad is not None
         assert block.multi_head_sa.proj.weight.grad is not None
@@ -146,7 +140,19 @@ def test_transformer_block_residual_connections(model_cfg):
     x = torch.randn(2, 4, 8)
     x_copy = x.clone()
     out = block(x)
-    # uutput should be different from input due to transformations
+    # output should be different from input due to transformations
     assert not torch.allclose(out, x_copy)
     assert out.shape == x_copy.shape
 
+
+def test_attention_output_deterministic(model_cfg):
+    """ ensure attention is deterministic with dropout=0 """
+    torch.manual_seed(42)
+    m1 = GPT(model_cfg)
+    torch.manual_seed(42)
+    m2 = GPT(model_cfg)
+    x = torch.randint(0, model_cfg.vocab_size, (1, 3))
+    with torch.no_grad():
+        out1, _ = m1(x)
+        out2, _ = m2(x)
+    assert torch.allclose(out1, out2)

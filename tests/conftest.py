@@ -1,6 +1,4 @@
 import pytest
-import tempfile
-import os
 import torch
 from config import DataConfig, TrainConfig, SampleConfig
 from model import GPTconfig
@@ -82,13 +80,20 @@ def mock_train_data(tmp_path):
     itos = {i: c for c, i in vocab.items()}
     training_names_set = {"a", "b", "c"}
     # create train/dev data
-    train_tokens = np.array([1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0], dtype=np.uint16)
-    dev_tokens = np.array([1, 2, 0, 1, 2, 0, 1, 2], dtype=np.uint16)
-    for tokens, name in [(train_tokens, "train.bin"), (dev_tokens, "dev.bin")]:
-        tokens.tofile(tmp_path / name)
+    data_files = [
+        (np.array([1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0], dtype=np.uint16), "train.bin"),
+        (np.array([1, 2, 0, 1, 2, 0, 1, 2], dtype=np.uint16), "dev.bin")
+    ]
+    for tokens, filename in data_files:
+        tokens.tofile(tmp_path / filename)
     # create metadata pickle with vocab mappings
     with open(tmp_path / "meta.pkl", "wb") as f:
-        pickle.dump({"vocab_size": 4, "itos": itos, "stoi": vocab, "training_names": training_names_set}, f)
+        pickle.dump({
+            "vocab_size": 4,
+            "itos": itos,
+            "stoi": vocab,
+            "training_names": training_names_set
+        }, f)
     return tmp_path
 
 
@@ -103,30 +108,25 @@ def min_targets_tensor():
 
 
 @pytest.fixture
-def mock_names_file_valid():
-    test_data = "München\nNür\nAugsburg\n" + "VeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhnot\n"
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
-        f.write(test_data)
-        temp_path = f.name
-    yield temp_path
-    os.unlink(temp_path)
+def mock_names_file_valid(tmp_path):
+    test_data = "München\nNür\nAugsburg\nVeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhnot\n"
+    test_file = tmp_path / "test_names.txt"
+    test_file.write_text(test_data, encoding="utf-8")
+    return str(test_file)
 
 
 @pytest.fixture
-def mock_names_file_invalid():
-    test_data = "A\n" + "VeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhhhhh\n" + "Berlin\n"
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
-        f.write(test_data)
-        temp_path = f.name
-    yield temp_path
-    os.unlink(temp_path)
+def mock_names_file_invalid(tmp_path):
+    test_data = "A\nVeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhhhhh\nBerlin\n"
+    test_file = tmp_path / "test_names_invalid.txt"
+    test_file.write_text(test_data, encoding="utf-8")
+    return str(test_file)
 
 
 @pytest.fixture
 def mock_vocab_cases():
-    """ essential test cases for vocabulary building """
     return {
-        'basic': ["abc\n", "def\n"],  # expected: ['\n', 'a', 'b', 'c', 'd', 'e', 'f'] = 7 chars
-        'duplicates': ["aaa\n", "abc\n"],  # expected: ['\n', 'a', 'b', 'c'] = 4 chars
-        'german': ["München\n", "Nürnberg\n"]  # test umlauts + real data
+        'basic': ["abc\n", "def\n"],
+        'duplicates': ["aaa\n", "abc\n"],
+        'german': ["München\n", "Nürnberg\n"]
     }

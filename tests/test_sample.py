@@ -7,7 +7,12 @@ from train import NameGPTTrainer
 
 def test_NameGPTSampler_init_wrong_config():
     with pytest.raises(AssertionError, match="Invalid sample config type."):
-        NameGPTSampler(sample_config=TrainConfig(), model_dir=None, model=None, enforce_novelty=None, save_samples=None)
+        NameGPTSampler(
+            sample_config=TrainConfig(),
+            model_dir=None, model=None,
+            enforce_novelty=None,
+            save_samples=None
+        )
 
 
 def test_NameGPTSampler_from_training_init(train_cfg, model_cfg, sample_cfg):
@@ -27,7 +32,11 @@ def test_NameGPTSampler_from_saved_model_init(train_cfg, model_cfg, sample_cfg):
     s = NameGPTSampler.from_saved_model(sample_cfg, t.model_save_dir)
     assert s.enforce_novelty and s.save_samples
     # check if weights are identical in models saved at trainer & sampler
-    assert all(torch.equal(p0, p1) for p0, p1 in zip(t.model.state_dict().values(), s.model.state_dict().values()))
+    assert all(
+        torch.equal(p0, p1) for p0, p1 in zip(
+            t.model.state_dict().values(), s.model.state_dict().values()
+            )
+        )
 
 
 def test_NameGPTSampler_from_training_load_meta(train_cfg, model_cfg, sample_cfg):

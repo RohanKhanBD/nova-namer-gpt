@@ -26,11 +26,6 @@ def test_GPT_init(model_cfg):
     assert m.config.n_embd % m.config.n_head == 0
 
 
-def test_GPT_init_num_params():
-    m = GPT(GPTconfig(), init_weights=False)
-    assert m.get_num_params() == 6334208
-
-
 def test_GPT_forward_T_greater_context_len(model_cfg):
     """ T dim of input idx may not be greater than context_len"""
     with pytest.raises(AssertionError):

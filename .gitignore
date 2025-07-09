@@ -22,8 +22,8 @@ venv/
 assets/
 
 # processed .bin files
-data/*.bin
-data/*.pkl
+data/*
+!data/names.txt
 
 # saved_models: ignore everything except demo folder
 saved_models/*

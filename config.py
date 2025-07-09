@@ -29,7 +29,7 @@ class TrainConfig:
     # training hyperparameters
     batch_size: int = 64
     learning_rate: float = 3e-4  # standard gpt learning rate
-    train_iter: int = 1
+    train_iter: int = 6000
     eval_iter: int = 150  # batches for loss estimation
     eval_interval: int = 500  # training steps between evaluations
 
@@ -62,7 +62,7 @@ class SampleConfig:
     """
 
     # system configuration
-    device: str = "mps"
+    device: str = "cpu"
 
     # generation parameters
     num_samples: int = 50

@@ -1,236 +1,205 @@
-# BavCityGPT 🏔️
+# 🏔️ NovaNamerGPT 🏔️
 
-A lightweight character-level transformer model (6.35M parameters) for generating authentic Bavarian city names. This GPT implementation learns from a unique dataset combining real Bavarian settlements and natural landmarks to create novel, culturally authentic toponyms.
+A minimal-footprint, open-weights lightweight transformer (6.3M parameters) that generates authentic names / brands for any domain. Currently featuring **🏔️ Bavarian city names 🏔️** as flagship demo, but designed to turn ANY list of words into endless fresh ideas - from tech startups to fantasy worlds!
 
-## 🎯 Key Feature
+---
 
-- **Lightweight Architecture**: 6.35M parameter transformer optimized for character-level generation
-- **Fast Training**: ~24 minutes on Apple Silicon (M1/M2)
-- **Minimal Dependencies**: Only PyTorch and NumPy required
-- **Complete Pipeline**: From data preparation to inference
+## Why NovaNamerGPT?
 
-## 📊 Model Performance
+* **Nano-scale codebase** – single-screen core in `model.py`, inspired by [nanoGPT](https://github.com/karpathy/nanoGPT)
+* **Plug-your-own data** – train on startup names, cocktails, planets, Pokémon—anything newline-separated
+* **Novelty secured** – 99% novel names - duplicates to input data are kicked
+* **Mac-book friendly** – 6 M-param character transformer fits in  VRAM-starved laptops; ~25 min to train on M1 Pro GPU
+* **One-command sample** – generate 50 brand-new names in 10 seconds on your local machine
+* **Smart results** – character-level transformer architecture delivers precise and creative names
 
-Best model achieved:
-- **Training Loss**: 1.202 (NLL)
-- **Validation Loss**: 1.441 (NLL)
-- **Convergence**: 6000 iterations
+---
 
-## Sample examples
-Selected novel place names inferenced from the best performing model:
+## 30-Second Demo
 
-- Untergammering
-- Kammerlach
-- Hinterroningen
-- Schönkrippen
-- Koppellerwiesmühle
-- Eisenried
-- Kirschensur
-- Buchschönmühl
-- Scharmannshausen
-- Vogeltrück
+- This will inference 50 novel samples from the provided default demo model at [`saved_models/demo/model.pt`](./saved_models/demo/model.pt)
+- Currently the demo model generates novel Bavarian city names trained on a 60k names dataset
 
-## Model Architecture
+```bash
+# ➊ clone
+git clone https://github.com/kenobijr/nova-namer-gpt
+cd nova-namer-gpt
 
-BavCityGPT is build on state-of-the-art transformer tech with:
-- **Character-level tokenization** for fine-grained linguistic patterns
-- **8-layer transformer** with 8 attention heads and 256 embedding dimensions
-- **6.35M parameters** optimized for Bavarian toponymy
-- **64-token context window** enabling complex name pattern recognition
-- **Few dependencies** Pytorch, Numpy
+# ➋ install
+pip install torch numpy
 
-## Dataset: The Bavarian Blend
+# ➌ sample
+python sample.py
+```
 
-The training dataset represents a novel approach to place name generation, combining ~60,000 entries from multiple sources:
+**Instant Results:**
+```
+Generating 50 sample names:
+ 1. Untergammering
+ 2. Kammerlach  
+ 3. Hinterroningen
+ 4. Schönkrippen
+ 5. Koppellerwiesmühle
+ ...
+```
 
-### Real Places (~45k entries)
+---
+
+## Quick Start -> Train Your Own Model
+
+```bash
+# 1. clone & install
+git clone https://github.com/kenobijr/nova-namer-gpt
+cd nova-namer-gpt
+pip install torch numpy
+```
+```bash
+# 2. prepare your data (one name per line) & replace names.txt
+cp your_dataset.txt data/names.txt
+```
+```bash
+# 3. process data
+python3 prepare_data.py
+```
+```bash
+# 4. check / tweak hyper-parameters
+# -> config.py : training / eval settings
+# -> model.py  : model architecture settings 
+code config.py model.py
+```
+```bash
+# 5. train model
+python3 train.py
+```
+```bash
+# 6. sample from your custom model
+python3 sample.py saved_models/your_model_directory
+```
+
+---
+
+
+## 🍻 Case study 1: Novel, unique & authentic Bavarian city names 🍻
+### Performance Metrics / Setup
+| Metric | Value |
+|--------|-------|
+| **Model Size** | 6.3M parameters |
+| **Vocab size** | 61 |
+| **Training Iterations** | 6000 |
+| **Batch size** | 64 |
+| **Training Speed** | 24 min on Apple Silicon |
+| **Context Window** | 64 characters |
+| **Embedding dimensions** | 256 |
+| **Learning rate** | 3e-4 |
+| **Best Training Loss** | 1.202 |
+| **Best Validation Loss** | 1.441 |
+
+### Dataset: The Bavarian Blend
+The training dataset is a special blend of ~60,000 entries from multiple sources:
+#### Real Places (~45k entries)
 - **Cities and villages** from official registries / APIs
 - **Multiple administrative affiliations** creating natural repetitions that strengthen common patterns
 - **Historical and modern settlements** across all Bavarian regions
-
-### Natural Landmarks (~15k entries) 
+#### Natural Landmarks (~15k entries) 
 - **Mountains, rivers, forests, and lakes** with authentic Bavarian nomenclature
 - **Cleaned toponymic suffixes** (removed "-berg", "-see", "-wald") to prevent overfitting while preserving linguistic roots
 - **Unique prefixes and stems** that capture Bavaria's diverse geographical heritage
 
-This unprecedented blend enables the model to generate names that sound authentically Bavarian while creating entirely novel combinations
+This unique blend enables the transformer to generate names that sound authentically Bavarian while creating entirely novel combinations.
 
-The raw dataset & metadata are in /data.
-
-
-## 🚀 Quick Start
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/bavarian-city-gpt.git
-cd bavarian-city-gpt
-```
-
-### 2. Install Dependencies
-
-```bash
-pip install -e .
-```
-
-### 3. Generate Names with Demo model
-
-```bash
-python sample.py
-```
-- This will generate 50 Bavarian city names using the pre-trained demo model.
-- The samples will be printed and saved at .txt file into a samples folder in the model dir.
 ---
 
-## Usage
-
-### Basic Sampling
-
-```bash
-# Generate 50 names (default)
-python sample.py
-
-### Advanced Usage
-
-```bash
-# Use a specific model
-python sample.py saved_models/your_model_directory
-
---- 
-
-## Training Your Own Model
-
-### 1. Prepare Data
-
-Place your text data in `data/names.txt` (one name per line):
+## Project Structure
 
 ```
-Burgsinn
-Leitenthal
-Maisenberg
-Weidensorger
-...
+NovaNamerGPT/
+├── train.py           # Main training script
+├── sample.py          # Generation script
+├── model.py           # GPT implementation & model config
+├── config.py          # All configs (but for model)
+├── prepare_data.py    # Data processing
+├── pyproject.toml     # Package config
+├── pytest.ini         # Test config
+├── data/              # Your datasets
+│   ├── names.txt      # Raw input data
+│   └── *.bin          # Processed files (generated by prepare_data.py)
+├── saved_models/      # Trained models
+│   └── demo/          # Pre-trained demo model
+└── tests/             # Pytest suite (52 tests)
 ```
 
-### 2. Process Data
+---
 
-```bash
-python prepare_data.py
-```
+## Architecture
 
-This creates binary files for efficient training.
-
-### 3. Configure Model
-
-Edit the configuration in `model.py`:
-
-```python
-@dataclass
-class GPTconfig:
-    context_len: int = 64  
-    vocab_size: int = 61
-    n_embd: int = 256
-    n_head: int = 8
-    # ... other settings
-```
-
-### 3. Configure Training
-
-Edit the configuration in `config.py`:
-
-```python
-@dataclass
-class TrainConfig:
-    batch_size: int = 64
-    learning_rate: float = 3e-4
-    train_iter: int = 10000        
-    device: str = "mps"
-    # ... other settings
-```
-
-### 4. Train Model
-
-```bash
-python train.py
-```
-
-The script uses settings from `TrainConfig` in `config.py`.
-
-### 5. Sample from Your Model
-
-```bash
-python sample.py --out_dir saved_models/bavGPT_YYYYMMDD_HHMMSS
-```
-
-## 📁 Project Structure
-
-```
-bavcityGPT/
-├── model.py          # Transformer architecture
-├── train.py          # Training pipeline
-├── sample.py         # Inference engine
-├── prepare.py        # Data processing
-├── config.py         # Configuration dataclasses
-├── pyproject.toml    # Package configuration
-├── data/
-│   ├── names.txt     # Raw input data
-│   └── *.bin         # Processed binary files
-└── saved_models/
-    └── demo/         # Pre-trained demo model
-```
-
-## Code Structure
-
-BavCityGPT follows a modular design with clean separation of concerns:
-
-#### Data Processing (`prepare.py`)
-- **NameProcessor class** handles raw data ingestion and preprocessing
+### Data Processing (`prepare.py`)
+- **NameProcessor** handles raw data ingestion and preprocessing
 - **Character-level encoding/decoding** with vocabulary building
-- **Train/dev/test splitting** with binary serialization for fast loading
+- **Train/dev/test splitting** with binary serialization for fast loading + metadata
 
-#### Model Implementation (`model.py`)
-- **GPT class** implements the core transformer architecture
-- **Modular attention** with separate Head and MultiHeadAttention classes
+### Model Implementation (`model.py`)
+- **GPT** orchestrates all nn elements on top of torch.nn.Module
+- **MultiHeadAttention** multi-head scaled dot-product attention with causal masking
+- **GPTconfig** all model parameters
 - **Proper weight initialization** following GPT-2 standards
 
-#### Training Pipeline (`train.py`)
-- **NameGPTTrainer** orchestrates the complete training workflow
-- **ModelManager** handles model persistence and metadata tracking
-- **TrainingMetrics** provides loss evaluation and progress logging
+### Training Pipeline (`train.py`)
+- **NameGPTTrainer** orchestrates the complete training workflow E2E
+- **Save_checkpoint** saves model state dict & metadata json for inference
+- **Sample_after_train** passes trained in-mem model & configs to sample.py to get samples printed to console
 
-#### Inference Engine (`sample.py`)
-- **NameGPTSampler** supports both standalone and post-training generation
+### Inference Engine (`sample.py`)
+- **NameGPTSampler** supports sampling from both in-mem (after training) and saved models
+- **Enforce_novelty** optional flag for saved model sampling; if activated, 100% duplicate samples compared to dataset are discarded
 - **Temperature-controlled sampling** for creativity vs. coherence trade-offs
-- **Automatic file management** with timestamped output
 
-#### Configuration Management (`config.py`)
+### Configuration Management (`config.py`)
 - **Dataclass-based configs** for training, sampling, and data processing
 - **Environment-aware device selection** (MPS/CUDA/CPU)
 
-### Workflow Integration
-Raw Data → NameProcessor → Binary Files → NameGPTTrainer → Saved Model → NameGPTSampler → Generated Names
+---
+
+## Testsuite
+
+**52 production-ready tests** covering all components via pytest
+
+```bash
+# Run full test suite
+pytest
+
+# Test specific components  
+pytest tests/test_model.py
+pytest tests/test_train.py
+```
 
 ---
 
-## Todos
-- "inference-check" service which is called by sample.py to check if new generated name is part of dataset to avoid alreay existing names
-- testcases
-- Try different model / context_len approach with "one name within context padded to fixed len & special start and end chars"
+## 🤝 Collaboration
 
-## 🙏 Acknowledgments
+Clean, minimal codebase designed for easy exploration and extension. Fork it, break it, improve it.
+
+---
+
+## Acknowledgments
 
 - Inspired by [nanoGPT](https://github.com/karpathy/nanoGPT) by Andrej Karpathy
 - Training data sourced from public Bavarian geographical databases
 - Built with PyTorch
 
+---
+
+## Todos
+- Add further Casestudies with other datasets
+- Try different model / context_len approach with "one name within context padded to fixed len & special start and end chars"
+
+---
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
 
+---
 
 ## Contact
 Feel free to reach out for collaboration or questions:
-
-https://github.com/kenobijr
 
 [mail](mailto:22.scree_rhino@icloud.com)

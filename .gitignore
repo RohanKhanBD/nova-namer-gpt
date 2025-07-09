@@ -33,3 +33,13 @@ saved_models/*
 saved_models/demo/*
 !saved_models/demo/model.pt
 !saved_models/demo/config.json
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+*~

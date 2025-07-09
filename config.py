@@ -62,7 +62,7 @@ class SampleConfig:
     """
 
     # system configuration
-    device: str = "cpu"
+    device: str = "mps"
 
     # generation parameters
     num_samples: int = 50

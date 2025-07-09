@@ -1,12 +1,33 @@
 [project]
-name = "bavcityGPT"
+name = "NovaNamerGPT"
 version = "0.1.0"
-description = "A lightweight GPT implementation for generating Bavarian city names"
+description = "A lightweight character-level GPT for universal name generation"
+authors = [{name = "kenobijr", email = "22.scree_rhino@icloud.com"}]
+readme = "README.md"
+license = {text = "MIT"}
 dependencies = [
     "torch",
     "numpy",
 ]
 requires-python = ">=3.8"
+keywords = ["gpt", "transformer", "name-generation", "machine-learning", "pytorch"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/kenobijr/nova-namer-gpt"
+Repository = "https://github.com/kenobijr/nova-namer-gpt"
+Issues = "https://github.com/kenobijr/nova-namer-gpt/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -21,7 +42,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = 100
-target-version = ['py313']
+target-version = ['py38']
 include = '\.pyi?$'
 
 [tool.flake8]

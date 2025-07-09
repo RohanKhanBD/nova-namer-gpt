@@ -61,7 +61,7 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         assert config.n_embd % config.n_head == 0, "Ratio n_embd / n_head must have no remainder."
         self.n_head = config.n_head
-        self.head_size: int = config.n_embd // config.n_head # dimension per attention head
+        self.head_size: int = config.n_embd // config.n_head  # dimension per attention head
         # single linear layer for all q, k, v projections (more efficient)
         self.qkv = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.a_bias)
         # output projection to combine all heads

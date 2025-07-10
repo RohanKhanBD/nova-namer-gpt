@@ -191,6 +191,9 @@ Clean, minimal codebase designed for easy exploration and extension. Fork it, br
 ## Todos
 - Add further Casestudies with other datasets
 - Try different model / context_len approach with "one name within context padded to fixed len & special start and end chars"
+- Performance
+    - DDP Support
+    - Flash attention
 
 ---
 

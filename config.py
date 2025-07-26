@@ -15,6 +15,10 @@ Classes:
 from dataclasses import dataclass
 import os
 import datetime
+import torch
+
+# update in runtime config globally for efficiency; main entry points import this script at start
+torch.set_float32_matmul_precision("high")
 
 
 @dataclass

@@ -36,6 +36,7 @@ class GPTconfig:
     n_embd: int = 256  # embedding dimension
     n_head: int = 8  # number of attention heads
     n_layer: int = 8  # number of transformer blocks
+    kv_head: int = 8  # number of kv heads
 
     # regularization
     dropout: float = 0.2
@@ -55,32 +56,78 @@ class MultiHeadAttention(nn.Module):
     - computes attention weights for all heads in parallel
     - applies triangular mask to prevent looking at future tokens
     - includes dropout for regularization
+    If kv_head == n_head, attention is self-attention
+    If kv_head == 1, attention is multi-query attention
+    Anyother valid kv_head will be grouped-query attention
     """
 
     def __init__(self, config: GPTconfig):
         super().__init__()
-        assert config.n_embd % config.n_head == 0, "Ratio n_embd / n_head must have no remainder."
+        assert config.n_embd % config.n_head == 0, (
+            "Ratio n_embd / n_head must have no remainder."
+        )
         self.n_head = config.n_head
-        self.head_size: int = config.n_embd // config.n_head  # dimension per attention head
-        # single linear layer for all q, k, v projections (more efficient)
-        self.qkv = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.a_bias)
+        self.kv_head = config.kv_head
+
+        self.head_size: int = (
+            config.n_embd // config.n_head
+        )  # dimension per attention head
+
+        self.n_rep = self.n_head // config.kv_head
+        assert self.n_rep * config.kv_head == self.n_head, (
+            "n_head must be divisible by kv_head."
+        )
+
+        self.query = nn.Linear(
+            config.n_embd, self.n_head * self.head_size, bias=config.a_bias
+        )
+        self.key = nn.Linear(
+            config.n_embd, self.kv_head * self.head_size, bias=config.a_bias
+        )
+        self.value = nn.Linear(
+            config.n_embd, self.kv_head * self.head_size, bias=config.a_bias
+        )
+
         # output projection to combine all heads
         self.proj = nn.Linear(config.n_embd, config.n_embd, bias=config.a_bias)
         self.dropout = nn.Dropout(config.dropout)
         # causal mask - lower triangular matrix prevents future token access
-        self.register_buffer("tril", torch.tril(torch.ones(config.context_len, config.context_len)))
+
+        self.register_buffer(
+            "tril",
+            torch.tril(torch.ones(config.context_len, config.context_len)),
+            persistent=False,
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, T, C = x.shape  # batch, time, channels
-        # compute q, k, v for all heads simultaneously
-        qkv = self.qkv(x).reshape(B, T, 3, self.n_head, self.head_size).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]  # each is (B, n_head, T, head_size)
+        # compute Q, K, V
+        q, k, v = self.query.forward(x), self.key.forward(x), self.value.forward(x)
+
+        # Viewing as [B, T, n_head, head_size]
+        q = q.view(B, T, self.n_head, self.head_size)
+
+        # Viewing as [B, T, kv_head, head_size]
+        k = k.view(B, T, self.kv_head, self.head_size)
+        v = v.view(B, T, self.kv_head, self.head_size)
+
+        # Repeat k and v to match number of heads
+        k = torch.repeat_interleave(k, self.n_rep, dim=2)
+        v = torch.repeat_interleave(v, self.n_rep, dim=2)
+
+        # transpose to [B, n_head, T, head_size]
+        q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
+
         # scaled dot-product attention
-        att = (q @ torch.transpose(k, dim0=-1, dim1=-2)) * self.head_size**-0.5  # scale: sqrt(d_k)
+        att = (
+            q @ torch.transpose(k, dim0=-1, dim1=-2)
+        ) * self.head_size**-0.5  # scale: sqrt(d_k)
         # apply causal mask and softmax
         att = F.softmax(att.masked_fill(self.tril[:T, :T] == 0, float("-inf")), dim=-1)
         # apply attention to values and reshape
-        out = (self.dropout(att) @ v).transpose(1, 2).reshape(B, T, C)  # (B, n_head, T, head_size)
+        out = (
+            (self.dropout(att) @ v).transpose(1, 2).reshape(B, T, C)
+        )  # (B, n_head, T, head_size)
         return self.dropout(self.proj(out))
 
 
@@ -97,7 +144,9 @@ class Ffw(nn.Module):
         hidden_dim = config.n_embd * config.ffw_widen  # expand by widening factor
         self.c_fc = nn.Linear(config.n_embd, hidden_dim, bias=config.ffw_bias)  # expand
         self.relu = nn.ReLU()
-        self.proj = nn.Linear(hidden_dim, config.n_embd, bias=config.ffw_bias)  # project back
+        self.proj = nn.Linear(
+            hidden_dim, config.n_embd, bias=config.ffw_bias
+        )  # project back
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -149,14 +198,20 @@ class GPT(nn.Module):
         self.transformer = nn.ModuleDict(
             dict(
                 wte=nn.Embedding(config.vocab_size, config.n_embd),  # token embeddings
-                wpe=nn.Embedding(config.context_len, config.n_embd),  # position embeddings
+                wpe=nn.Embedding(
+                    config.context_len, config.n_embd
+                ),  # position embeddings
                 drop=nn.Dropout(config.dropout),
-                h=nn.ModuleList([TransformerBlock(config) for _ in range(config.n_layer)]),
+                h=nn.ModuleList(
+                    [TransformerBlock(config) for _ in range(config.n_layer)]
+                ),
                 ln_f=nn.LayerNorm(config.n_embd),  # final layer norm
             )
         )
         # language modeling head
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=config.lm_head_bias)
+        self.lm_head = nn.Linear(
+            config.n_embd, config.vocab_size, bias=config.lm_head_bias
+        )
         # weight tying - share parameters between token embedding and output projection
         self.transformer.wte.weight = self.lm_head.weight
         # initialize weights if requested
@@ -172,13 +227,13 @@ class GPT(nn.Module):
         - if no targets: returns logits for next token prediction only
         """
         B, T = idx.shape
-        assert T <= self.config.context_len, f"T: {T} exceeds context_len {self.config.context_len}"
+        assert T <= self.config.context_len, (
+            f"T: {T} exceeds context_len {self.config.context_len}"
+        )
         # create position indices for current sequence
         pos = torch.arange(T, dtype=torch.long, device=idx.device)
         # token and position embeddings
-        x = self.transformer.drop(
-            self.transformer.wte(idx) + self.transformer.wpe(pos)
-        )
+        x = self.transformer.drop(self.transformer.wte(idx) + self.transformer.wpe(pos))
         # forward through transformer blocks
         for block in self.transformer.h:
             x = block(x)
@@ -209,7 +264,9 @@ class GPT(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         # scaled init for residual projections
         for name, param in self.named_parameters():
-            if name.endswith("proj.weight"):  # catches both attention and ffw projections
+            if name.endswith(
+                "proj.weight"
+            ):  # catches both attention and ffw projections
                 # scale by depth for proper gradient flow
                 torch.nn.init.normal_(
                     param, mean=0.0, std=0.02 / math.sqrt(2 * self.config.n_layer)
@@ -223,5 +280,7 @@ class GPT(nn.Module):
         """
         n_params = sum(p.numel() for p in self.parameters())
         if non_embedding:
-            n_params -= self.transformer.wpe.weight.numel()  # subtract position embeddings
+            n_params -= (
+                self.transformer.wpe.weight.numel()
+            )  # subtract position embeddings
         return n_params

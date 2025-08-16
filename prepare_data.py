@@ -125,7 +125,7 @@ class NameProcessor:
             "stoi": self.stoi,
             "training_names": self.training_names_set,
         }
-        with open(os.path.join(self.config.output_dir, "meta.pkl"), "wb") as f:
+        with open(os.path.join(self.config.output_dir, "vocab_meta.pkl"), "wb") as f:
             pickle.dump(meta, f)
 
     def execute(self) -> None:

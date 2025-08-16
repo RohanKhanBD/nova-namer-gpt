@@ -43,3 +43,6 @@ saved_models/demo/*
 # OS generated files
 Thumbs.db
 *~
+
+# Claude Code
+Claude.md

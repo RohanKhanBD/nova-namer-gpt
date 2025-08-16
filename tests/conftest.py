@@ -73,7 +73,7 @@ def mock_train_data(tmp_path):
     creates minimal test data files that _load_data() expects:
     - train.bin: 12 tokens as uint16 (enough for context_len=4, batch_size=2)
     - dev.bin: 8 tokens as uint16 (smaller dev set)
-    - meta.pkl: vocab mappings for 4 characters
+    - vocab_meta.pkl: vocab mappings for 4 characters
     """
     # minimal vocabulary: 4 characters (newline, a, b, c)
     vocab = {'\n': 0, 'a': 1, 'b': 2, 'c': 3}
@@ -87,7 +87,7 @@ def mock_train_data(tmp_path):
     for tokens, filename in data_files:
         tokens.tofile(tmp_path / filename)
     # create metadata pickle with vocab mappings
-    with open(tmp_path / "meta.pkl", "wb") as f:
+    with open(tmp_path / "vocab_meta.pkl", "wb") as f:
         pickle.dump({
             "vocab_size": 4,
             "itos": itos,

@@ -102,24 +102,24 @@ def test_export_data(data_cfg):
     p = NameProcessor(data_cfg)
     p.execute()
     # check if bin & metadata paths exist
-    expected_files = ["train.bin", "dev.bin", "test.bin", "meta.pkl"]
+    expected_files = ["train.bin", "dev.bin", "test.bin", "vocab_meta.pkl"]
     assert all((data_cfg.output_dir / f).exists() for f in expected_files)
     # check bin file contents
     for split in ["train", "dev", "test"]:
         data = np.fromfile(data_cfg.output_dir / f"{split}.bin", dtype=np.uint16)
         assert len(data) > 0
     # check meta file contents
-    with open(data_cfg.output_dir / "meta.pkl", "rb") as f:
+    with open(data_cfg.output_dir / "vocab_meta.pkl", "rb") as f:
         meta = pickle.load(f)
     assert all(key in meta for key in ["vocab_size", "itos", "stoi", "training_names"])
     assert meta["vocab_size"] > 0
 
 
 def test_export_data_training_names(data_cfg):
-    """ check if name from mock file in training_names meta.pkl """
+    """ check if name from mock file in training_names vocab_meta.pkl """
     p = NameProcessor(data_cfg)
     p.execute()
-    with open(data_cfg.output_dir / "meta.pkl", "rb") as f:
+    with open(data_cfg.output_dir / "vocab_meta.pkl", "rb") as f:
         meta = pickle.load(f)
     assert "München" in meta["training_names"]
 
@@ -138,7 +138,7 @@ def test_vocab_consistency_after_splits(data_cfg):
     """ ensure vocab built from full dataset, not just training split """
     p = NameProcessor(data_cfg)
     p.execute()
-    with open(data_cfg.output_dir / "meta.pkl", "rb") as f:
+    with open(data_cfg.output_dir / "vocab_meta.pkl", "rb") as f:
         meta = pickle.load(f)
     # check that vocab includes characters from all splits
     all_chars = set()

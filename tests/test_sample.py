@@ -1,5 +1,6 @@
 import pytest
 import torch
+import json
 from config import TrainConfig
 from sample import NameGPTSampler
 from train import NameGPTTrainer
@@ -71,6 +72,21 @@ def test_NameGPTSample_generate(train_cfg, model_cfg, sample_cfg):
         saved_samples = f.read()
     assert all((sample in saved_samples) for sample in samples)
     assert all((num in saved_samples) for num in ["1.", "2.", "3."])
+
+
+def test_vocab_size_mismatch(train_cfg, model_cfg, sample_cfg):
+    """ test safety check for vocab size mismatch between model and metadata """
+    t = NameGPTTrainer(train_cfg, model_cfg)
+    t.train_model()
+    # corrupt config.json to have wrong vocab_size
+    config_path = t.model_save_dir + "/config.json"
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    config["model_config"]["vocab_size"] = 999
+    with open(config_path, "w") as f:
+        json.dump(config, f)
+    with pytest.raises(AssertionError, match="Vocab size mismatch"):
+        NameGPTSampler.from_saved_model(sample_cfg, t.model_save_dir)
 
 
 def test_train_and_create_save_dir(sample_cfg):

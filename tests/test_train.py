@@ -40,15 +40,15 @@ def test_load_data_invalid_bin_file_path(train_cfg, model_cfg):
 
 
 def test_load_data_missing_meta_file(train_cfg, model_cfg, mock_train_data):
-    # remove the meta.pkl file from the temporary directory
-    os.remove(mock_train_data / "meta.pkl")
+    # remove the vocab_meta.pkl file from the temporary directory
+    os.remove(mock_train_data / "vocab_meta.pkl")
     train_cfg.data_dir = str(mock_train_data)
     with pytest.raises(AssertionError, match="meta.pkl file not found"):
         NameGPTTrainer(train_cfg, model_cfg)
 
 
 def test_load_data_vocab_size(train_cfg, model_cfg):
-    """ model_config vocab_size: 10; meta.pkl testfile: 4 -> update to 4!! """
+    """ model_config vocab_size: 10; vocab_meta.pkl testfile: 4 -> update to 4!! """
     assert model_cfg.vocab_size == 10
     t = NameGPTTrainer(train_cfg, model_cfg)
     assert t.model_config.vocab_size == 4

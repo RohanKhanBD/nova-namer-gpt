@@ -100,8 +100,15 @@ class NameGPTSampler:
         with open(os.path.join(model_dir, "config.json"), "r") as f:
             config = json.load(f)
         # load vocabulary metadata
-        with open(os.path.join(config["train_config"]["data_dir"], "meta.pkl"), "rb") as f:
+        with open(os.path.join(model_dir, "vocab_meta.pkl"), "rb") as f:
             meta = pickle.load(f)
+        # safety: ensure vocab_size at model (config.json) and vocabulary (vocac_meta.pkl) are equal
+        model_vocab_size = config["model_config"]["vocab_size"]
+        meta_vocab_size = meta["vocab_size"]
+        assert model_vocab_size == meta_vocab_size, f"""Vocab size mismatch:
+        model is setup with {model_vocab_size}
+        vocabulary metadata has {meta_vocab_size}
+        """
         result = {"config": config, "itos": meta["itos"]}
         # optionally include training names for duplicate detection
         if load_training_names:

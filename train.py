@@ -75,8 +75,8 @@ class NameGPTTrainer:
             data = np.memmap(os.path.join(data_dir, f"{split}.bin"), dtype=np.uint16, mode="r")
             splits[split] = torch.from_numpy(data.astype(np.int64))
         # load metadata and validate vocabulary
-        assert os.path.exists(os.path.join(data_dir, "meta.pkl")), "meta.pkl file not found"
-        with open(os.path.join(data_dir, "meta.pkl"), "rb") as f:
+        assert os.path.exists(os.path.join(data_dir, "vocab_meta.pkl")), "meta.pkl file not found"
+        with open(os.path.join(data_dir, "vocab_meta.pkl"), "rb") as f:
             meta = pickle.load(f)
         actual_vocab = meta["vocab_size"]
         # update model config vocab size // warn if necessary at mismatch and proceed anyway
@@ -212,10 +212,16 @@ class NameGPTTrainer:
                 "detailed_training_results": self.training_results,
             },
         }
-        # save metadata as json for easy inspection
+        # save metadata as json
         with open(os.path.join(save_dir, "config.json"), "w", encoding="utf-8") as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
-        print(f"Model saved to: {save_dir}")
+        # copy vocab metadata and persist at model save_dir
+        src_meta = os.path.join(self.train_config.data_dir, "vocab_meta.pkl")
+        dst_meta = os.path.join(save_dir, "vocab_meta.pkl")
+        with open(src_meta, "rb") as src, open(dst_meta, "wb") as dst:
+            dst.write(src.read())
+
+        print(f"Model & metadata saved to: {save_dir}")
         return save_dir
 
     def _sample_after_train(self) -> None:

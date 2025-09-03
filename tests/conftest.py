@@ -44,6 +44,7 @@ def model_cfg():
         n_embd=8,
         n_head=2,
         n_layer=2,
+        kv_head=2,
         dropout=0.0,  # Set to 0 for deterministic tests
         ffw_widen=4,
         a_bias=True,
@@ -76,24 +77,27 @@ def mock_train_data(tmp_path):
     - vocab_meta.pkl: vocab mappings for 4 characters
     """
     # minimal vocabulary: 4 characters (newline, a, b, c)
-    vocab = {'\n': 0, 'a': 1, 'b': 2, 'c': 3}
+    vocab = {"\n": 0, "a": 1, "b": 2, "c": 3}
     itos = {i: c for c, i in vocab.items()}
     training_names_set = {"a", "b", "c"}
     # create train/dev data
     data_files = [
         (np.array([1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0], dtype=np.uint16), "train.bin"),
-        (np.array([1, 2, 0, 1, 2, 0, 1, 2], dtype=np.uint16), "dev.bin")
+        (np.array([1, 2, 0, 1, 2, 0, 1, 2], dtype=np.uint16), "dev.bin"),
     ]
     for tokens, filename in data_files:
         tokens.tofile(tmp_path / filename)
     # create metadata pickle with vocab mappings
     with open(tmp_path / "vocab_meta.pkl", "wb") as f:
-        pickle.dump({
-            "vocab_size": 4,
-            "itos": itos,
-            "stoi": vocab,
-            "training_names": training_names_set
-        }, f)
+        pickle.dump(
+            {
+                "vocab_size": 4,
+                "itos": itos,
+                "stoi": vocab,
+                "training_names": training_names_set,
+            },
+            f,
+        )
     return tmp_path
 
 
@@ -109,7 +113,9 @@ def min_targets_tensor():
 
 @pytest.fixture
 def mock_names_file_valid(tmp_path):
-    test_data = "München\nNür\nAugsburg\nVeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhnot\n"
+    test_data = (
+        "München\nNür\nAugsburg\nVeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhnot\n"
+    )
     test_file = tmp_path / "test_names.txt"
     test_file.write_text(test_data, encoding="utf-8")
     return str(test_file)
@@ -126,7 +132,7 @@ def mock_names_file_invalid(tmp_path):
 @pytest.fixture
 def mock_vocab_cases():
     return {
-        'basic': ["abc\n", "def\n"],
-        'duplicates': ["aaa\n", "abc\n"],
-        'german': ["München\n", "Nürnberg\n"]
+        "basic": ["abc\n", "def\n"],
+        "duplicates": ["aaa\n", "abc\n"],
+        "german": ["München\n", "Nürnberg\n"],
     }

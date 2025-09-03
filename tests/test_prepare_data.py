@@ -39,7 +39,7 @@ def test_load_raw_data_invalid(data_cfg, mock_names_file_invalid):
 
 
 def test_is_valid_name(data_cfg):
-    """ test name len boundaries from DataConfig """
+    """test name len boundaries from DataConfig"""
     p = NameProcessor(data_cfg)
     valid_cases = ["hah", "VeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhnot\n"]
     invalid_cases = ["hu", "VeryLongCityNameThatExceedsMaxLengthhhhhhhhhhhhhhh\n"]
@@ -56,7 +56,7 @@ def test_shuffle_names(data_cfg):
 
 
 def test_vocabulary_size(data_cfg, mock_vocab_cases):
-    """ test that vocabulary counts unique characters correctly """
+    """test that vocabulary counts unique characters correctly"""
     p = NameProcessor(data_cfg)
     p._build_vocabulary(mock_vocab_cases["duplicates"])
     assert p.vocab_size == 4  # \n, a, b, c
@@ -98,7 +98,7 @@ def test_create_splits(data_cfg):
 
 
 def test_export_data(data_cfg):
-    """ equally E2E test of execute() method """
+    """equally E2E test of execute() method"""
     p = NameProcessor(data_cfg)
     p.execute()
     # check if bin & metadata paths exist
@@ -116,7 +116,7 @@ def test_export_data(data_cfg):
 
 
 def test_export_data_training_names(data_cfg):
-    """ check if name from mock file in training_names vocab_meta.pkl """
+    """check if name from mock file in training_names vocab_meta.pkl"""
     p = NameProcessor(data_cfg)
     p.execute()
     with open(data_cfg.output_dir / "vocab_meta.pkl", "rb") as f:
@@ -125,7 +125,7 @@ def test_export_data_training_names(data_cfg):
 
 
 def test_empty_input_file(data_cfg, tmp_path):
-    """ handle empty input files gracefully """
+    """handle empty input files gracefully"""
     empty_file = tmp_path / "empty.txt"
     empty_file.write_text("", encoding="utf-8")
     data_cfg.input_file = str(empty_file)
@@ -135,7 +135,7 @@ def test_empty_input_file(data_cfg, tmp_path):
 
 
 def test_vocab_consistency_after_splits(data_cfg):
-    """ ensure vocab built from full dataset, not just training split """
+    """ensure vocab built from full dataset, not just training split"""
     p = NameProcessor(data_cfg)
     p.execute()
     with open(data_cfg.output_dir / "vocab_meta.pkl", "rb") as f:

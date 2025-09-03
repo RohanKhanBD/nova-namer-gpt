@@ -21,8 +21,12 @@ def test_NameGPTTrainer_init_wrong_configs(train_cfg, model_cfg):
 
 def test_NameGPTTrainer_init(train_cfg, model_cfg):
     t = NameGPTTrainer(train_cfg, model_cfg)
-    assert isinstance(t.train_data, torch.Tensor) and isinstance(t.dev_data, torch.Tensor)
-    assert hasattr(t.model, "_parameters") and isinstance(t.model.transformer, nn.ModuleDict)
+    assert isinstance(t.train_data, torch.Tensor) and isinstance(
+        t.dev_data, torch.Tensor
+    )
+    assert hasattr(t.model, "_parameters") and isinstance(
+        t.model.transformer, nn.ModuleDict
+    )
 
 
 def test_get_device_fallback(train_cfg, model_cfg, monkeypatch):
@@ -48,7 +52,7 @@ def test_load_data_missing_meta_file(train_cfg, model_cfg, mock_train_data):
 
 
 def test_load_data_vocab_size(train_cfg, model_cfg):
-    """ model_config vocab_size: 10; vocab_meta.pkl testfile: 4 -> update to 4!! """
+    """model_config vocab_size: 10; vocab_meta.pkl testfile: 4 -> update to 4!!"""
     assert model_cfg.vocab_size == 10
     t = NameGPTTrainer(train_cfg, model_cfg)
     assert t.model_config.vocab_size == 4
@@ -102,7 +106,9 @@ def test_save_checkpoint_model(train_cfg, model_cfg):
     assert isinstance(t.model_save_dir, str)
     # setup fresh model, load state_dict into it and compare with original state
     m = GPT(model_cfg)
-    checkpoint = torch.load(os.path.join(t.model_save_dir, "model.pt"), map_location="cpu")
+    checkpoint = torch.load(
+        os.path.join(t.model_save_dir, "model.pt"), map_location="cpu"
+    )
     m.load_state_dict(checkpoint)
     # Compare state dicts directly
     original_state = {k: v.cpu() for k, v in t.model.state_dict().items()}
@@ -131,6 +137,6 @@ def test_sample_after_train(train_cfg, model_cfg):
 
 
 def test_train_and_create_save_dir(train_cfg):
-    """ dir name created in config property depending on time """
+    """dir name created in config property depending on time"""
     new_dir = train_cfg.save_dir_current
     assert new_dir.startswith(str(train_cfg.saved_models_root))

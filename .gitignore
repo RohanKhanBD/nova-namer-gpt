@@ -10,6 +10,8 @@ venv/
 **/__pycache__/
 *.pyc
 *.pyo
+# pytest cache
+.pytest_cache/
 
 # macOS system files
 **/.DS_Store

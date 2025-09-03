@@ -8,7 +8,10 @@ from config import TrainConfig
 def test_GPT_init_validations():
     validation_cases = [
         (TrainConfig(), "Invalid config type."),
-        (GPTconfig(n_head=3), "Ratio n_embd / n_head must have no remainder."),
+        (
+            GPTconfig(n_head=3, kv_head=3),
+            "Ratio n_embd / n_head must have no remainder.",
+        ),
         (GPTconfig(n_head=0), "n_head must be positive"),
         (GPTconfig(n_layer=0), "n_layer must be positive"),
         (GPTconfig(vocab_size=0), "vocab_size must be positive"),
@@ -27,7 +30,7 @@ def test_GPT_init(model_cfg):
 
 
 def test_GPT_forward_T_greater_context_len(model_cfg):
-    """ T dim of input idx may not be greater than context_len"""
+    """T dim of input idx may not be greater than context_len"""
     with pytest.raises(AssertionError):
         m = GPT(model_cfg)
         idx = torch.zeros(2, 5, dtype=torch.long)
@@ -35,18 +38,22 @@ def test_GPT_forward_T_greater_context_len(model_cfg):
 
 
 def test_GPT_forward_train_base(model_cfg, min_idx_tensor, min_targets_tensor):
-    """ when training with targets, logits shape gets flattened to (B*T, C) for loss calculation """
+    """when training with targets, logits shape gets flattened to (B*T, C) for loss calculation"""
     m = GPT(model_cfg)
     B_idx, T_idx = min_idx_tensor.shape
     logits, loss = m(min_idx_tensor, min_targets_tensor)
     B_l, T_l, C_l = logits.shape
     # flattened out into (B*T, C) only for cross_entropy calc; returned as (B,T,C)
     assert (B_l, T_l, C_l) == (B_idx, T_idx, m.config.vocab_size)
-    assert isinstance(loss, torch.Tensor) and isinstance(loss.item(), float) and loss.item() > 0
+    assert (
+        isinstance(loss, torch.Tensor)
+        and isinstance(loss.item(), float)
+        and loss.item() > 0
+    )
 
 
 def test_GPT_forward_infer_base(model_cfg, min_idx_tensor):
-    """ when infering with idx input shape (B,T) logits shape must be (B,T,C) C:vocab_size"""
+    """when infering with idx input shape (B,T) logits shape must be (B,T,C) C:vocab_size"""
     m = GPT(model_cfg)
     B_idx, T_idx = min_idx_tensor.shape
     logits, loss = m(min_idx_tensor)
@@ -67,13 +74,17 @@ def test_MultiHeadAttention_qvc_projection(model_cfg):
     mha = MultiHeadAttention(model_cfg)
     B, T, C = 2, 4, 8
     x = torch.randn(B, T, C)
-    qkv_out = mha.qkv(x)
-    assert qkv_out.shape == (B, T, 3 * C)
+    q_out, k_out, v_out = mha.query(x), mha.key(x), mha.value(x)
+    assert q_out.shape == (B, T, C)
+    assert k_out.shape == (B, T, C)
+    assert v_out.shape == (B, T, C)
     # test reshape & permute
-    qkv = qkv_out.reshape(B, T, 3, mha.n_head, mha.head_size).permute(2, 0, 3, 1, 4)
-    assert qkv.shape == (3, B, mha.n_head, T, mha.head_size)
-    q, _, _ = qkv[0], qkv[1], qkv[2]
-    assert q.shape == (B, mha.n_head, T, mha.head_size)
+    q_out = q_out.view(B, T, mha.n_head, mha.head_size)
+    k_out = k_out.view(B, T, mha.n_head, mha.head_size)
+    v_out = v_out.view(B, T, mha.n_head, mha.head_size)
+    assert q_out.shape == (B, T, mha.n_head, mha.head_size)
+    assert k_out.shape == (B, T, mha.n_head, mha.head_size)
+    assert v_out.shape == (B, T, mha.n_head, mha.head_size)
 
 
 def test_attention_mask_causal(model_cfg):
@@ -115,18 +126,17 @@ def test_ffw_widening_factor(model_cfg):
 
 
 def test_gradient_flow(model_cfg, min_idx_tensor, min_targets_tensor):
-    """ check gradients flow through key parameters """
+    """check gradients flow through key parameters"""
     m = GPT(model_cfg)
     _, loss = m(min_idx_tensor, min_targets_tensor)
     loss.backward()
-    grad_params = [
-            m.transformer.wte.weight,
-            m.transformer.wpe.weight,
-            m.lm_head.weight
-        ]
+    grad_params = [m.transformer.wte.weight, m.transformer.wpe.weight, m.lm_head.weight]
     assert all(p.grad is not None for p in grad_params)
     for block in m.transformer.h:
-        assert block.multi_head_sa.qkv.weight.grad is not None
+        # Testing q, k and v individualy
+        assert block.multi_head_sa.query.weight.grad is not None
+        assert block.multi_head_sa.key.weight.grad is not None
+        assert block.multi_head_sa.value.weight.grad is not None
         assert block.multi_head_sa.proj.weight.grad is not None
 
 
@@ -141,7 +151,7 @@ def test_transformer_block_residual_connections(model_cfg):
 
 
 def test_attention_output_deterministic(model_cfg):
-    """ ensure attention is deterministic with dropout=0 """
+    """ensure attention is deterministic with dropout=0"""
     torch.manual_seed(42)
     m1 = GPT(model_cfg)
     torch.manual_seed(42)

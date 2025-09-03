@@ -80,19 +80,19 @@ python3 sample.py saved_models/your_model_directory
 
 
 ## 🍻 Case study 1: Novel, unique & authentic Bavarian city names 🍻
-### Performance Metrics / Setup
+### Performance Metrics / Setup in MHA mode
 | Metric | Value |
 |--------|-------|
 | **Model Size** | 6.3M parameters |
 | **Vocab size** | 61 |
-| **Training Iterations** | 6000 |
+| **Training Iterations** | 5500 |
 | **Batch size** | 64 |
-| **Training Speed** | 24 min on Apple Silicon |
+| **Training Speed** | 13.3 min on Apple M1 Pro GPU |
 | **Context Window** | 64 characters |
 | **Embedding dimensions** | 256 |
 | **Learning rate** | 3e-4 |
-| **Best Training Loss** | 1.202 |
-| **Best Validation Loss** | 1.441 |
+| **Best Training Loss** | 1.227 |
+| **Best Validation Loss** | 1.440 |
 
 ### Dataset: The Bavarian Blend
 The training dataset is a special blend of ~60,000 entries from multiple sources:

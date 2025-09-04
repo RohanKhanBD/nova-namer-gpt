@@ -98,7 +98,7 @@ class NameGPTTrainer:
         batch_borders = torch.randint(
             0,
             len(split) - self.model_config.context_len,
-            (self.train_config.batch_size,),
+            (self.train_config.mini_batch_size,),
         )
         # extract input sequences (x) and target sequences (y)
         x = torch.stack([split[t: t + self.model_config.context_len] for t in batch_borders])
@@ -114,6 +114,7 @@ class NameGPTTrainer:
         - handles model saving and experiment tracking
         - generates samples after training completion
         """
+        grad_accum = self.train_config.batch_size // (self.train_config.mini_batch_size * self.model_config.context_len)
         start_time = datetime.now()
         # set random seed for reproducibility
         torch.manual_seed(self.train_config.seed)
@@ -131,14 +132,15 @@ class NameGPTTrainer:
                 self.training_results.append(result)
                 print(result)
 
-            # forward pass
-            Xtr, Ytr = self._get_batch(self.train_data)
-            Xtr, Ytr = Xtr.to(self.device), Ytr.to(self.device)
-            _, loss = self.model(Xtr, Ytr)
-
-            # backward pass
             self.optimizer.zero_grad()
-            loss.backward()
+            for grad_i in range(grad_accum):
+                # forward pass
+                Xtr, Ytr = self._get_batch(self.train_data)
+                Xtr, Ytr = Xtr.to(self.device), Ytr.to(self.device)
+                _, loss = self.model(Xtr, Ytr)
+                loss = loss / grad_accum
+                # backward pass
+                loss.backward()
 
             # update params
             self.optimizer.step()

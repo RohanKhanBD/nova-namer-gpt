@@ -35,15 +35,12 @@ class GPTconfig:
     vocab_size: int = 61  # character vocabulary size
     n_embd: int = 256  # embedding dimension
     n_head: int = 8  # number of attention heads
-    n_layer: int = 8  # number of transformer blocks
     kv_head: int = 8  # number of kv heads
-
+    n_layer: int = 8  # number of transformer blocks
     # regularization
     dropout: float = 0.2
-
     # feed-forward network
     ffw_widen: int = 4  # expansion factor for ffn hidden layer
-
     # bias settings for different components
     a_bias: bool = True  # attention projection bias
     ffw_bias: bool = True  # feed-forward layer bias
@@ -56,7 +53,8 @@ class MultiHeadAttention(nn.Module):
     - computes attention weights for all heads in parallel
     - applies triangular mask to prevent looking at future tokens
     - includes dropout for regularization
-    If kv_head == n_head, attention is self-attention
+    - relation kv_head & n_head dictate attention mode
+    If kv_head == n_head -> multi-head attention
     If kv_head == 1, attention is multi-query attention
     Anyother valid kv_head will be grouped-query attention
     """
@@ -67,17 +65,12 @@ class MultiHeadAttention(nn.Module):
             "Ratio n_embd / n_head must have no remainder."
         )
         self.n_head = config.n_head
+        self.head_size: int = config.n_embd // config.n_head
         self.kv_head = config.kv_head
-
-        self.head_size: int = (
-            config.n_embd // config.n_head
-        )  # dimension per attention head
-
-        self.n_rep = self.n_head // config.kv_head
+        self.n_rep = self.n_head // config.kv_head  # kv repetition factor
         assert self.n_rep * config.kv_head == self.n_head, (
             "n_head must be divisible by kv_head."
         )
-
         self.query = nn.Linear(
             config.n_embd, self.n_head * self.head_size, bias=config.a_bias
         )
@@ -91,8 +84,8 @@ class MultiHeadAttention(nn.Module):
         # output projection to combine all heads
         self.proj = nn.Linear(config.n_embd, config.n_embd, bias=config.a_bias)
         self.dropout = nn.Dropout(config.dropout)
-        # causal mask - lower triangular matrix prevents future token access
 
+        # causal mask - lower triangular matrix prevents future token access
         self.register_buffer(
             "tril",
             torch.tril(torch.ones(config.context_len, config.context_len)),
@@ -101,33 +94,34 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, T, C = x.shape  # batch, time, channels
-        # compute Q, K, V
-        q, k, v = self.query.forward(x), self.key.forward(x), self.value.forward(x)
 
-        # Viewing as [B, T, n_head, head_size]
+        # compute q, k, v projections
+        q, k, v = self.query(x), self.key(x), self.value(x)
+
+        # split q into unique query heads: (B, T, n_head, head_size)
         q = q.view(B, T, self.n_head, self.head_size)
-
-        # Viewing as [B, T, kv_head, head_size]
+        # split kv into kv heads: (B, T, kv_head, head_size)
         k = k.view(B, T, self.kv_head, self.head_size)
         v = v.view(B, T, self.kv_head, self.head_size)
 
-        # Repeat k and v to match number of heads
+        # copy kv n_rep times to share it for number of heads
         k = torch.repeat_interleave(k, self.n_rep, dim=2)
         v = torch.repeat_interleave(v, self.n_rep, dim=2)
 
-        # transpose to [B, n_head, T, head_size]
+        # transpose to (B, n_head, T, head_size)
         q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
 
         # scaled dot-product attention
         att = (
             q @ torch.transpose(k, dim0=-1, dim1=-2)
         ) * self.head_size**-0.5  # scale: sqrt(d_k)
+
         # apply causal mask and softmax
         att = F.softmax(att.masked_fill(self.tril[:T, :T] == 0, float("-inf")), dim=-1)
-        # apply attention to values and reshape
-        out = (
-            (self.dropout(att) @ v).transpose(1, 2).reshape(B, T, C)
-        )  # (B, n_head, T, head_size)
+
+        # apply attention to values and reshape: (B, n_head, T, head_size)
+        out = (self.dropout(att) @ v).transpose(1, 2).reshape(B, T, C)
+
         return self.dropout(self.proj(out))
 
 
@@ -242,11 +236,12 @@ class GPT(nn.Module):
         if targets is not None:
             # training mode - compute loss over all positions
             logits = self.lm_head(x)
+            # flatten (B,T,C) -> (B*T,C) & (B,T) -> (B*T) for cross entropy
             loss = F.cross_entropy(
                 logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1
             )
         else:
-            # inference mode - only compute logits for last position
+            # inference mode - only compute logits for last position / timestep
             logits = self.lm_head(x[:, [-1], :])  # list [-1] to preserve the time dim
             loss = None
         return logits, loss
@@ -272,14 +267,14 @@ class GPT(nn.Module):
                     param, mean=0.0, std=0.02 / math.sqrt(2 * self.config.n_layer)
                 )
 
-    def get_num_params(self, non_embedding=True):
+    def get_num_params(self, none_embedding=True):
         """
         count total model parameters
-        - non_embedding=True excludes position embeddings from count
+        - non_embedding=True excludes positional embeddings from count
         - token embeddings included due to weight tying with output layer
         """
         n_params = sum(p.numel() for p in self.parameters())
-        if non_embedding:
+        if none_embedding:
             n_params -= (
                 self.transformer.wpe.weight.numel()
             )  # subtract position embeddings
